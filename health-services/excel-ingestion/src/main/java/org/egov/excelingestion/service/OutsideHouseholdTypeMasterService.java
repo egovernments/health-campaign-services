@@ -3,7 +3,6 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.config.ErrorConstants;
-import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.CampaignSearchResponse;
@@ -20,7 +19,8 @@ import java.util.Set;
 /**
  * Reads which facility usages are sites (e.g. Outside Household Places, Transit Posts) from the MDMS master
  * {@link ProcessingConstants#OUTSIDE_HOUSEHOLD_TYPES_SCHEMA_CODE} (HCM.OUTSIDE_HOUSEHOLD_TYPES),
- * read at the state tenant, and decides whether the Outside Household sheet applies to a given campaign.
+ * read at the state tenant, and decides whether the Outside Household sheet applies to a given campaign. Which campaign types
+ * offer Outside Household comes from MDMS too: the deliveryMethods of the type's HCM-PROJECT-TYPES.projectTypes record.
  *
  * <p>An MDMS reply with no active rows is read as NO site types (the feature is simply off for that
  * tenant); only an actual failed MDMS call is an error ({@link ErrorConstants#MDMS_SERVICE_ERROR}).
@@ -31,21 +31,22 @@ public class OutsideHouseholdTypeMasterService {
 
     // Fetch limit for the master: a small, bounded list (OUTSIDE_HOUSEHOLD_PLACES/TRANSIT_POST today), not paginated in practice.
     private static final int FETCH_LIMIT = 200;
+    // Rows of one campaign-type code: its active record plus any retired copies
+    private static final int PROJECT_TYPE_FETCH_LIMIT = 10;
 
     private static final String CYCLE_DATA_DELIVERY_METHODS_KEY = "deliveryMethods";
     private static final String CODE_KEY = "code";
+    private static final String MDMS_IS_ACTIVE_KEY = "isActive";
 
     private final MDMSService mdmsService;
     private final CampaignService campaignService;
     private final CustomExceptionHandler exceptionHandler;
-    private final ExcelIngestionConfig config;
 
     public OutsideHouseholdTypeMasterService(MDMSService mdmsService, CampaignService campaignService,
-                                 CustomExceptionHandler exceptionHandler, ExcelIngestionConfig config) {
+                                 CustomExceptionHandler exceptionHandler) {
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
         this.exceptionHandler = exceptionHandler;
-        this.config = config;
     }
 
     /**
@@ -82,10 +83,9 @@ public class OutsideHouseholdTypeMasterService {
 
     /**
      * Whether a configured sheet applies: every sheet except the Outside Household sheet always does; the Outside Household sheet
-     * only when the campaign type is one of excel.ingestion.outside.household.campaign.types (POLIO by default), the
-     * campaign uses the outside-household delivery method AND the site-types master has at least one
-     * active code. False when there is no campaign to check (blank referenceId or an
-     * attendance-register reference).
+     * only when the campaign uses the outside-household delivery method, its campaign type offers that method in MDMS
+     * ({@link #campaignTypeOffersOutsideHousehold}) AND the site-types master has at least one active code. False when there
+     * is no campaign to check (blank referenceId or an attendance-register reference).
      */
     public boolean isSheetApplicable(String sheetNameKey, String referenceId, String referenceType,
                                      String tenantId, RequestInfo requestInfo) {
@@ -108,23 +108,56 @@ public class OutsideHouseholdTypeMasterService {
         }
         Object requestedMethods = requestDetails == null ? null : requestDetails.get(ProcessingConstants.GENERATE_DETAIL_DELIVERY_METHODS_KEY);
         Object requestedType = requestDetails == null ? null : requestDetails.get(ProcessingConstants.GENERATE_DETAIL_PROJECT_TYPE_KEY);
-        String projectType = requestedType instanceof String ? normalize((String) requestedType) : null;
+        String projectType = requestedType instanceof String ? trimToNull((String) requestedType) : null;
         CampaignSearchResponse.CampaignDetail campaign = requestedMethods instanceof List && projectType != null
                 ? null : campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
         if (projectType == null && campaign != null) {
-            projectType = normalize(campaign.getProjectType());
+            projectType = trimToNull(campaign.getProjectType());
         }
         Set<String> methods = requestedMethods instanceof List
                 ? deliveryMethodCodes((List<?>) requestedMethods) : extractDeliveryMethods(campaign);
-        return isOutsideHouseholdSitesCampaignType(projectType)
-                && methods.contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)
+        return methods.contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)
+                && campaignTypeOffersOutsideHousehold(projectType, tenantId, requestInfo)
                 && !getOutsideHouseholdTypes(requestInfo, tenantId).isEmpty();
     }
 
-    private boolean isOutsideHouseholdSitesCampaignType(String projectType) {
-        List<String> types = config.getOutsideHouseholdCampaignTypes();
-        return projectType != null && types != null
-                && types.stream().map(OutsideHouseholdTypeMasterService::normalize).anyMatch(projectType::equals);
+    /**
+     * Whether the campaign type offers Outside Household: its record in {@link ProcessingConstants#PROJECT_TYPES_SCHEMA_CODE}
+     * (read by code at the campaign's tenant, as project-factory reads it) lists OUTSIDEHOUSEHOLD in deliveryMethods. The
+     * console offers the delivery method from the same list, so any campaign type gets Outside Household through MDMS alone.
+     * False for a blank type, or a type with no active record listing the method; fails with
+     * {@link ErrorConstants#MDMS_SERVICE_ERROR} only when the MDMS call itself fails.
+     */
+    public boolean campaignTypeOffersOutsideHousehold(String projectType, String tenantId, RequestInfo requestInfo) {
+        String code = trimToNull(projectType);
+        if (code == null) {
+            return false;
+        }
+        List<Map<String, Object>> rows;
+        try {
+            rows = mdmsService.searchMDMS(requestInfo, tenantId, ProcessingConstants.PROJECT_TYPES_SCHEMA_CODE,
+                    Map.<String, Object>of(CODE_KEY, code), PROJECT_TYPE_FETCH_LIMIT, 0);
+        } catch (Exception e) {
+            log.error("Error reading {} {} for tenant {}: {}",
+                    ProcessingConstants.PROJECT_TYPES_SCHEMA_CODE, code, tenantId, e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR,
+                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
+            return false; // never reached
+        }
+        for (Map<String, Object> row : rows) {
+            Object data = row.get("data");
+            Object methods = data instanceof Map
+                    ? ((Map<?, ?>) data).get(ProcessingConstants.PROJECT_TYPE_DELIVERY_METHODS_FIELD) : null;
+            if (!Boolean.FALSE.equals(row.get(MDMS_IS_ACTIVE_KEY)) && methods instanceof List
+                    && deliveryMethodCodes((List<?>) methods).contains(ProcessingConstants.OUTSIDE_HOUSEHOLD_DELIVERY_METHOD)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /** Upper-cases and trims; null for a null or blank code. Shared lookup key for every caller. */

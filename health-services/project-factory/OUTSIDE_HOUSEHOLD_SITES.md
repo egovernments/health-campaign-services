@@ -115,9 +115,9 @@ sequenceDiagram
 ```
 Campaign saved (draft)
     ↓
-projectType in excel.ingestion.outside.household.campaign.types (default POLIO)?
-    ↓ yes
 additionalDetails.cycleData.deliveryMethods contains OUTSIDEHOUSEHOLD?   (strings or {code}, upper-cased, separators ignored)
+    ↓ yes
+the campaign type's HCM-PROJECT-TYPES.projectTypes record lists OUTSIDEHOUSEHOLD in deliveryMethods?   (any campaign type; the console offers it from the same list)
     ↓ yes
 HCM.OUTSIDE_HOUSEHOLD_TYPES has an active row?
     ↓ yes
@@ -230,7 +230,7 @@ update's own delivery methods, so it does not depend on the stored copy being sa
 
 | Service | Key (default) | Purpose |
 |---|---|---|
-| excel-ingestion | `excel.ingestion.outside.household.campaign.types` (`POLIO`) | Campaign types that can get the OH sheet |
+| excel-ingestion, project-factory | MDMS `HCM-PROJECT-TYPES.projectTypes` → `deliveryMethods` (no env setting) | A campaign type whose record lists `OUTSIDEHOUSEHOLD` can get the OH sheet; its clones keep the source's delivery rules (without the dates) and its templates keep the earlier data when OH is changed |
 | facility | `egov.mdms.host` (env `EGOV_MDMS_HOST`) and `egov.mdms.search.v2.endpoint` (env `EGOV_MDMS_SEARCH_V2_ENDPOINT`, as in plan-service) | Reading site types to hide sites. The facility chart must set both per environment (e.g. `/mdms-v2/v2/_search` on demo) |
 | health-project | `egov.mdms.host` / `egov.mdms.search.v2.endpoint` (env `EGOV_MDMS_HOST` / `EGOV_MDMS_SEARCH_V2_ENDPOINT`) | Reading site types to hide site links. The chart must set `EGOV_MDMS_SEARCH_V2_ENDPOINT` per environment (e.g. `/mdms-v2/v2/_search` on demo) |
 | project-factory | `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL` (`true`) | Edit that removes OH unlinks the sites |

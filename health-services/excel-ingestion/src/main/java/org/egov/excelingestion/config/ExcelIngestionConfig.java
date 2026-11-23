@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
-import java.util.List;
 
 @Component
 @Getter
@@ -39,9 +38,6 @@ public class ExcelIngestionConfig {
 
     @Value("${egov.campaign.host}")
     private String campaignHost;
-
-    @Value("${excel.ingestion.outside.household.campaign.types:POLIO}")
-    private List<String> outsideHouseholdCampaignTypes;
 
     // A clone that agrees with its source on Outside Household, on the same boundaries, gets the source's filled file as its template
     @Value("${excel.ingestion.clone.reuse.source.template:true}")

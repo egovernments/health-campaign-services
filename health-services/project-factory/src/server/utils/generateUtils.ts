@@ -9,7 +9,7 @@ import { getBoundarySheetData } from "../api/genericApis";
 import { checkIfSourceIsMicroplan } from "./campaignUtils";
 import { httpRequest } from "./request";
 import { RequestInfo } from "../config/models/requestInfoSchema";
-import { OUTSIDE_HOUSEHOLD_DELIVERY_METHOD, normalizeDeliveryMethodCode } from "./deliveryMethodUtils";
+import { OUTSIDE_HOUSEHOLD_DELIVERY_METHOD, campaignTypeOffersOutsideHousehold, normalizeDeliveryMethodCode } from "./deliveryMethodUtils";
 
 function extractProperties(obj: any) {
     return {
@@ -101,24 +101,18 @@ export function keepCloneLineage(incomingCampaign: any, savedCampaign: any): str
     return filled;
 }
 
-/** One of CAMPAIGN_DELIVERY_CONDITION_TYPES (POLIO by default), the campaign types with delivery conditions. */
-export function isDeliveryConditionCampaignType(projectType: unknown): boolean {
-    const types: string[] = config.mapping?.deliveryConditionCampaignTypes || [];
-    return typeof projectType === "string" && types.includes(projectType.trim().toUpperCase());
-}
-
 /**
  * A clone being created starts without its source's delivery dates (the cycles' fromDate / toDate in cycleData and their
  * startDate / endDate in deliveryRules): they belong to the source's period, and the planner picks the clone's own in the
  * delivery step. Cycles, deliveries, doses, conditions and delivery methods stay. Returns the number of dates removed;
- * none for a campaign that is not a clone, an edit (parentId), a campaign type outside CAMPAIGN_DELIVERY_CONDITION_TYPES
- * (POLIO by default), or when the switch is off.
+ * none for a campaign that is not a clone, an edit (parentId), a campaign type that does not offer Outside Household
+ * ([offersOutsideHousehold], from campaignTypeOffersOutsideHousehold), or when the switch is off.
  */
-export function dropCloneSourceDeliveryDates(campaignDetails: any): number {
+export function dropCloneSourceDeliveryDates(campaignDetails: any, offersOutsideHousehold: boolean): number {
     const details = campaignDetails?.additionalDetails;
     if (!config.mapping?.clearCloneDeliveryDates || !campaignDetails || campaignDetails.parentId
         || !(details?.cloneFrom || details?.clonedCampaignId)) return 0;
-    if (!isDeliveryConditionCampaignType(campaignDetails.projectType)) return 0;
+    if (!offersOutsideHousehold) return 0;
     let removed = 0;
     const drop = (target: any, keys: string[]) => {
         for (const key of keys) {
@@ -136,18 +130,18 @@ export function dropCloneSourceDeliveryDates(campaignDetails: any): number {
 }
 
 /**
- * A clone being created of a campaign type outside CAMPAIGN_DELIVERY_CONDITION_TYPES (POLIO by default) starts without its
- * source's delivery rules: cycles, dates, deliveries, conditions and products (deliveryRules and additionalDetails.cycleData).
- * The planner sets them in the delivery step, as for a new campaign. Only for the clone's first save as a draft; nothing for
- * a campaign that is not a clone, an edit (parentId), a campaign without a type, or when the switch is off. Returns true when
- * the source's rules were removed.
+ * A clone being created of a campaign type that does not offer Outside Household ([offersOutsideHousehold], from
+ * campaignTypeOffersOutsideHousehold) starts without its source's delivery rules: cycles, dates, deliveries, conditions and
+ * products (deliveryRules and additionalDetails.cycleData). The planner sets them in the delivery step, as for a new campaign.
+ * Only for the clone's first save as a draft; nothing for a campaign that is not a clone, an edit (parentId), a campaign
+ * without a type, or when the switch is off. Returns true when the source's rules were removed.
  */
-export function dropCloneSourceDeliveryRules(campaignDetails: any): boolean {
+export function dropCloneSourceDeliveryRules(campaignDetails: any, offersOutsideHousehold: boolean): boolean {
     const details = campaignDetails?.additionalDetails;
     if (!config.mapping?.clearCloneDeliveryDates || !campaignDetails || campaignDetails.parentId || campaignDetails.action !== "draft"
         || !(details?.cloneFrom || details?.clonedCampaignId)) return false;
     if (typeof campaignDetails.projectType !== "string" || !campaignDetails.projectType.trim()
-        || isDeliveryConditionCampaignType(campaignDetails.projectType)) return false;
+        || offersOutsideHousehold) return false;
     const cycleData = details?.cycleData;
     const hadRules = (Array.isArray(campaignDetails.deliveryRules) && campaignDetails.deliveryRules.length > 0)
         || (cycleData && typeof cycleData === "object" && Object.keys(cycleData).length > 0);
@@ -201,14 +195,15 @@ function bringsNewFile(existing: any, incoming: any): boolean {
  * The campaign's file from before a save that adds or drops Outside Household, so the new template keeps its users,
  * targets and facilities (only the Outside Household sheet follows the new choice): the attached file, or else the file
  * kept by an earlier change (that save detached it). Null when the switch is off, the choice did not change, the hierarchy
- * or boundaries changed, the campaign has no such file, or the save brings a new file.
+ * or boundaries changed, the campaign has no such file, the save brings a new file, or the campaign type does not offer
+ * Outside Household in MDMS.
  */
-export function fileBeforeOutsideHouseholdChange(request: any): string | null {
+export async function fileBeforeOutsideHouseholdChange(request: any): Promise<string | null> {
     const existing = request?.body?.ExistingCampaignDetails;
     const incoming = request?.body?.CampaignDetails;
     if (!config.mapping?.keepDataOnOutsideHouseholdChange || !existing || !incoming || !isOutsideHouseholdDeliveryChanged(request)) return null;
-    if (!isDeliveryConditionCampaignType(incoming.projectType || existing.projectType)) return null;
     if (!sameAreaAsSaved(existing, incoming) || bringsNewFile(existing, incoming)) return null;
+    if (!(await campaignTypeOffersOutsideHousehold(incoming.tenantId || existing.tenantId, incoming.projectType || existing.projectType))) return null;
     const existingFiles = (Array.isArray(existing.resources) ? existing.resources : []).filter(isUnifiedFile);
     return existingFiles.length > 0 ? existingFiles[0].filestoreId : keptFile(existing);
 }

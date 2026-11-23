@@ -18,7 +18,7 @@ Changes from v2.0 to v2.1, for product owners, QA and ops.
 
 ## Outside Household sites (HCMPRE-2371)
 
-- New 4th sheet `HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST` in the unified template (`OutsideHouseholdSheetGenerator`). It appears only for campaign types in `excel.ingestion.outside.household.campaign.types` whose `additionalDetails.cycleData.deliveryMethods` contains `OUTSIDEHOUSEHOLD`, and only when MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES` has an active row.
+- New 4th sheet `HCM_ADMIN_CONSOLE_OUTSIDE_HOUSEHOLD_LIST` in the unified template (`OutsideHouseholdSheetGenerator`). It appears only when the campaign's `additionalDetails.cycleData.deliveryMethods` contains `OUTSIDEHOUSEHOLD`, its campaign type's MDMS `HCM-PROJECT-TYPES.projectTypes` record lists `OUTSIDEHOUSEHOLD` in `deliveryMethods` (any campaign type, no env setting), and MDMS `HCM.OUTSIDE_HOUSEHOLD_TYPES` has an active row.
 - Pre-filled with the campaign's stored sites, then the Permanent sites of earlier campaigns on its lowest two boundary levels (as Inactive, no worker).
 - Upload checks in `OutsideHouseholdValidationProcessor`: category allowed for the site type, boundary on the lowest or second-lowest level, no duplicate new row (same type, category, boundary and name).
 - MDMS: sheet schema `outside-household-microplan-ingestion`, plus the sheet entries in `excelIngestionGenerate` (`unified-console`) and `excelIngestionProcess` (`unified-console-validation`, `unified-console-parse`). Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](../project-factory/OUTSIDE_HOUSEHOLD_SITES.md).
@@ -235,7 +235,6 @@ These environment-tunable keys are new; defaults are shown and match `applicatio
 | `egov.excel.usage-value-validation-enabled` | `true` | Server enforces the usage column is exactly `Active`/`Inactive` (`HCM_VALIDATION_INVALID_USAGE`). |
 | `egov.excel.boundary-selection-validation-enabled` | `true` | Server rejects a boundary selection that does not resolve to a boundary code (`HCM_BOUNDARY_INVALID_SELECTION`). |
 | `excel.ingestion.listener.watchdog.interval.ms` | `60000` | Interval for the Kafka listener watchdog that restarts a stopped generation-init consumer. |
-| `excel.ingestion.outside.household.campaign.types` | `POLIO` | Campaign types (projectType codes, comma-separated) that can get the Outside Household sheet. |
 | `excel.ingestion.processed.file.keep.localized.enum.values` | `true` | The processed file shows the localized dropdown labels the user uploaded. Validation, processors and saved sheet data still use the codes (`EnumValueNormalizer`). `false` keeps the codes in the processed file, as before. |
 
 ## 8. Release Version

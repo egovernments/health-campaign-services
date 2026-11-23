@@ -2,7 +2,6 @@ package org.egov.excelingestion.service;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.config.ErrorConstants;
-import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.CampaignSearchResponse;
@@ -54,9 +53,35 @@ class OutsideHouseholdTypeMasterServiceTest {
 
     @BeforeEach
     void setUp() {
-        ExcelIngestionConfig config = new ExcelIngestionConfig();
-        config.setOutsideHouseholdCampaignTypes(List.of("POLIO"));
-        service = new OutsideHouseholdTypeMasterService(mdmsService, campaignService, new CustomExceptionHandler(), config);
+        service = new OutsideHouseholdTypeMasterService(mdmsService, campaignService, new CustomExceptionHandler());
+        // As in MDMS: the POLIO campaign type offers the household and outside-household delivery methods
+        mockProjectType("POLIO", true, Map.of("code", "HOUSEHOLDSTRATEGY", "order", 1), Map.of("code", "OUTSIDEHOUSEHOLD", "order", 2));
+    }
+
+    @Test
+    void campaignTypeOffersOutsideHousehold_readsTheDeliveryMethodsOfTheTypesMdmsRecord() {
+        mockProjectType("Immunisation", true, Map.of("code", "HOUSEHOLDSTRATEGY"), Map.of("code", "OUTSIDEHOUSEHOLD"));
+        mockProjectType("MR-DN", true, Map.of("code", "HOUSEHOLDSTRATEGY"));
+        mockProjectType("RETIRED", false, Map.of("code", "OUTSIDEHOUSEHOLD"));
+
+        assertTrue(service.campaignTypeOffersOutsideHousehold("Immunisation", TENANT, new RequestInfo()));
+        assertTrue(service.campaignTypeOffersOutsideHousehold(" Immunisation ", TENANT, new RequestInfo()));
+        assertFalse(service.campaignTypeOffersOutsideHousehold("MR-DN", TENANT, new RequestInfo()), "no OUTSIDEHOUSEHOLD in deliveryMethods");
+        assertFalse(service.campaignTypeOffersOutsideHousehold("RETIRED", TENANT, new RequestInfo()), "inactive record");
+        assertFalse(service.campaignTypeOffersOutsideHousehold("SMC", TENANT, new RequestInfo()), "no record");
+        assertFalse(service.campaignTypeOffersOutsideHousehold(" ", TENANT, new RequestInfo()));
+        assertFalse(service.campaignTypeOffersOutsideHousehold(null, TENANT, new RequestInfo()));
+    }
+
+    @Test
+    void campaignTypeOffersOutsideHousehold_failedMdmsCall_throwsMdmsServiceError() {
+        when(mdmsService.searchMDMS(any(), eq(TENANT), eq(ProcessingConstants.PROJECT_TYPES_SCHEMA_CODE), any(), anyInt(), eq(0)))
+                .thenThrow(new RuntimeException("MDMS down"));
+
+        CustomException e = assertThrows(CustomException.class,
+                () -> service.campaignTypeOffersOutsideHousehold("SMC", TENANT, new RequestInfo()));
+
+        assertEquals(ErrorConstants.MDMS_SERVICE_ERROR, e.getCode());
     }
 
     @Test
@@ -131,16 +156,28 @@ class OutsideHouseholdTypeMasterServiceTest {
                 .thenReturn(campaignWithCycleDataDeliveryMethods("HOUSEHOLDSTRATEGY"));
 
         assertFalse(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo()));
+        verify(mdmsService, never()).searchMDMS(any(), any(), eq(ProcessingConstants.PROJECT_TYPES_SCHEMA_CODE), any(), anyInt(), anyInt());
     }
 
     @Test
-    void isSheetApplicable_otherCampaignType_falseEvenIfCampaignUsesTheMethod() {
+    void isSheetApplicable_campaignTypeWithoutTheMethodInMdms_falseEvenIfCampaignUsesTheMethod() {
         mockMaster(masterRow("OUTSIDE_HOUSEHOLD_PLACES", true, true));
         CampaignSearchResponse.CampaignDetail smc = campaignWithCycleDataDeliveryMethods("OUTSIDEHOUSEHOLD");
         smc.setProjectType("SMC");
         when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any())).thenReturn(smc);
 
         assertFalse(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo()));
+    }
+
+    @Test
+    void isSheetApplicable_anyCampaignTypeWhoseMdmsRecordOffersTheMethod_true() {
+        mockMaster(masterRow("OUTSIDE_HOUSEHOLD_PLACES", true, true));
+        mockProjectType("SMC", true, Map.of("code", "OUTSIDEHOUSEHOLD"));
+        CampaignSearchResponse.CampaignDetail smc = campaignWithCycleDataDeliveryMethods("OUTSIDEHOUSEHOLD");
+        smc.setProjectType("SMC");
+        when(campaignService.searchCampaignById(eq(CAMPAIGN_ID), eq(TENANT), any())).thenReturn(smc);
+
+        assertTrue(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo()));
     }
 
     @Test
@@ -200,6 +237,16 @@ class OutsideHouseholdTypeMasterServiceTest {
 
         assertTrue(service.isSheetApplicable(ProcessingConstants.OUTSIDE_HOUSEHOLD_SHEET_NAME_KEY, CAMPAIGN_ID, null, TENANT, new RequestInfo(),
                 Map.of("registerId", "r-1")));
+    }
+
+    /** The type's HCM-PROJECT-TYPES.projectTypes record as MDMS returns it, looked up by code at the campaign's tenant. */
+    private void mockProjectType(String code, boolean active, Object... deliveryMethods) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("code", code);
+        data.put(ProcessingConstants.PROJECT_TYPE_DELIVERY_METHODS_FIELD, List.of(deliveryMethods));
+        lenient().when(mdmsService.searchMDMS(any(), eq(TENANT), eq(ProcessingConstants.PROJECT_TYPES_SCHEMA_CODE),
+                        eq(Map.of("code", code)), anyInt(), eq(0)))
+                .thenReturn(List.of(Map.of("isActive", active, "data", data)));
     }
 
     private void mockMaster(Map<String, Object>... rows) {

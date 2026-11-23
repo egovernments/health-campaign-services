@@ -39,6 +39,7 @@ class CloneSourceTemplateServiceTest {
     @Mock private CampaignService campaignService;
     @Mock private ExcelIngestionConfig config;
     @Mock private FileStoreService fileStoreService;
+    @Mock private OutsideHouseholdTypeMasterService outsideHouseholdTypeMasterService;
 
     private CloneSourceTemplateService service;
     private final RequestInfo requestInfo = new RequestInfo();
@@ -46,8 +47,9 @@ class CloneSourceTemplateServiceTest {
     @BeforeEach
     void setUp() {
         when(config.isCloneReuseSourceTemplate()).thenReturn(true);
-        when(config.getOutsideHouseholdCampaignTypes()).thenReturn(List.of("POLIO"));
-        service = new CloneSourceTemplateService(campaignService, fileStoreService, config);
+        // As in MDMS: POLIO offers Outside Household; a type not stubbed here does not
+        when(outsideHouseholdTypeMasterService.campaignTypeOffersOutsideHousehold(eq("POLIO"), eq("dev"), any())).thenReturn(true);
+        service = new CloneSourceTemplateService(campaignService, fileStoreService, config, outsideHouseholdTypeMasterService);
     }
 
     @Test
@@ -108,18 +110,18 @@ class CloneSourceTemplateServiceTest {
     }
 
     @Test
-    void aCloneOfACampaignTypeWithoutDeliveryConditionsGetsItsTemplateAsBefore() {
+    void aCloneOfACampaignTypeThatDoesNotOfferOutsideHouseholdGetsItsTemplateAsBefore() {
         CampaignSearchResponse.CampaignDetail clone = clone(List.of("HOUSEHOLDSTRATEGY"), List.of("A"), null);
         CampaignSearchResponse.CampaignDetail source = source(List.of("HOUSEHOLDSTRATEGY"), List.of("A"), "src-file");
         clone.setProjectType("MR-DN");
         source.setProjectType("MR-DN");
         stub(clone, source);
-        assertNull(service.sourceFileForUnchangedClone(generate(null), requestInfo), "not POLIO: no source file");
+        assertNull(service.sourceFileForUnchangedClone(generate(null), requestInfo), "MR-DN does not offer it: no source file");
         byte[] generated = {1, 2, 3};
-        assertSame(generated, service.withSourceData(generate(null), requestInfo, generated), "not POLIO: generated template unchanged");
-        clone.setProjectType(" polio ");
-        source.setProjectType("POLIO");
-        assertEquals("src-file", service.sourceFileForUnchangedClone(generate(null), requestInfo), "POLIO, any case: the source's file");
+        assertSame(generated, service.withSourceData(generate(null), requestInfo, generated), "MR-DN: generated template unchanged");
+        // the same campaign type once its MDMS record offers Outside Household
+        when(outsideHouseholdTypeMasterService.campaignTypeOffersOutsideHousehold(eq("MR-DN"), eq("dev"), any())).thenReturn(true);
+        assertEquals("src-file", service.sourceFileForUnchangedClone(generate(null), requestInfo), "MR-DN offering it: the source's file");
     }
 
     @Test

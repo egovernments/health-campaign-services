@@ -12,6 +12,7 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
 import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage, keepFileForOutsideHouseholdChange } from "../utils/generateUtils";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
+import { campaignTypeOffersOutsideHousehold } from "../utils/deliveryMethodUtils";
 
 /** Validates and creates a project-type campaign, persisting its resources to eg_cm_resource_details so they survive the Flow 2 JSONB overwrite. */
 async function createProjectTypeCampaignService(request: express.Request) {
@@ -22,13 +23,17 @@ async function createProjectTypeCampaignService(request: express.Request) {
 
     // A clone whose Outside Household choice differs from its source's does not keep the source's file
     await dropCloneSourceFileIfOutsideHouseholdChoiceDiffers(request?.body?.CampaignDetails);
+    // A new clone's campaign type decides what it keeps of its source's delivery; read from MDMS once, for clones only
+    const campaign = request?.body?.CampaignDetails;
+    const isNewClone = !campaign?.parentId && Boolean(campaign?.additionalDetails?.cloneFrom || campaign?.additionalDetails?.clonedCampaignId);
+    const offersOutsideHousehold = isNewClone && await campaignTypeOffersOutsideHousehold(campaign?.tenantId, campaign?.projectType);
     // A new clone starts without its source's delivery dates; the planner picks its own
-    const datesRemoved = dropCloneSourceDeliveryDates(request?.body?.CampaignDetails);
+    const datesRemoved = dropCloneSourceDeliveryDates(campaign, offersOutsideHousehold);
     if (datesRemoved > 0) {
         logger.info(`New clone of ${request?.body?.CampaignDetails?.additionalDetails?.cloneFrom}: removed ${datesRemoved} delivery dates copied from the source`);
     }
-    // ...and a clone of another campaign type starts without its source's delivery rules (dates and conditions)
-    if (dropCloneSourceDeliveryRules(request?.body?.CampaignDetails)) {
+    // ...and a clone of a campaign type without Outside Household starts without its source's delivery rules (dates and conditions)
+    if (dropCloneSourceDeliveryRules(campaign, offersOutsideHousehold)) {
         logger.info(`New clone of ${request?.body?.CampaignDetails?.additionalDetails?.cloneFrom}: removed the delivery rules copied from the source`);
     }
 
@@ -145,7 +150,7 @@ async function updateProjectTypeCampaignService(request: express.Request) {
 
     // A save that adds or drops Outside Household detaches the file below; the new template keeps that file's data,
     // and the campaign keeps the file's id for the next change (when no file is attached any more)
-    const fileBefore = fileBeforeOutsideHouseholdChange(request);
+    const fileBefore = await fileBeforeOutsideHouseholdChange(request);
     keepFileForOutsideHouseholdChange(request, fileBefore);
     if (fileBefore) {
         request.body.fileBeforeOutsideHouseholdChange = fileBefore;

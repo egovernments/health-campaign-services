@@ -6,10 +6,12 @@ jest.mock('../api/genericApis', () => ({ getBoundarySheetData: jest.fn() }));
 jest.mock('../utils/campaignUtils', () => ({ checkIfSourceIsMicroplan: jest.fn() }));
 jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
+jest.mock('../api/coreApis', () => ({ searchMDMSDataViaV2Api: jest.fn() }));
 
 import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, keepFileForOutsideHouseholdChange, KEPT_FILE_KEY } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
+import { searchMDMSDataViaV2Api } from '../api/coreApis';
 
 const boundaries = [{ code: 'B1', isRoot: true, includeAllChildren: true }];
 const campaign = (deliveryMethods?: unknown, extra: Record<string, unknown> = {}) => ({
@@ -240,20 +242,18 @@ describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s 
         },
         deliveryRules: [{ code: 'POLIO', cycles: [{ id: 1, startDate: 1793298600000, endDate: 1793989799000, deliveries: [{ id: 1, doseCriteria: [{ condition: '0<=ageandage<=59' }] }] }] }],
     });
-    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true, deliveryConditionCampaignTypes: ['POLIO'] }; });
+    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true }; });
     afterAll(() => { delete (config as any).mapping; });
 
-    it('keeps the dates of a clone whose campaign type is not listed (POLIO only by default)', () => {
+    it('keeps the dates of a clone whose campaign type does not offer Outside Household', () => {
         const c = { ...clone(), projectType: 'MR-DN' };
-        expect(dropCloneSourceDeliveryDates(c)).toBe(0);
+        expect(dropCloneSourceDeliveryDates(c, false)).toBe(0);
         expect(c.deliveryRules[0].cycles[0].startDate).toBe(1793298600000);
-        expect(dropCloneSourceDeliveryDates({ ...clone(), projectType: undefined })).toBe(0);
-        expect(dropCloneSourceDeliveryDates({ ...clone(), projectType: ' polio ' })).toBe(4);
     });
 
     it('removes the cycle dates in cycleData and deliveryRules and keeps everything else', () => {
         const c = clone();
-        expect(dropCloneSourceDeliveryDates(c)).toBe(4);
+        expect(dropCloneSourceDeliveryDates(c, true)).toBe(4);
         expect(c.additionalDetails.cycleData).toEqual({ deliveryMethods: ['OUTSIDEHOUSEHOLD'], cycleConfgureDate: { cycle: 1, deliveries: 1 }, cycleData: [{ key: 1 }] });
         expect(c.deliveryRules[0].cycles[0]).toEqual({ id: 1, deliveries: [{ id: 1, doseCriteria: [{ condition: '0<=ageandage<=59' }] }] });
         expect(c.additionalDetails.cloneFrom).toBe('CMP-SRC');
@@ -261,17 +261,17 @@ describe('dropCloneSourceDeliveryDates (a new clone does not keep its source\'s 
 
     it('changes nothing for a campaign that is not a clone, an edit, or when the switch is off', () => {
         const notClone = clone(); delete notClone.additionalDetails.cloneFrom; delete notClone.additionalDetails.clonedCampaignId;
-        expect(dropCloneSourceDeliveryDates(notClone)).toBe(0);
+        expect(dropCloneSourceDeliveryDates(notClone, true)).toBe(0);
         const edit = { ...clone(), parentId: 'parent-1' };
-        expect(dropCloneSourceDeliveryDates(edit)).toBe(0);
+        expect(dropCloneSourceDeliveryDates(edit, true)).toBe(0);
         (config as any).mapping.clearCloneDeliveryDates = false;
         const off = clone();
-        expect(dropCloneSourceDeliveryDates(off)).toBe(0);
+        expect(dropCloneSourceDeliveryDates(off, true)).toBe(0);
         expect(off.deliveryRules[0].cycles[0].startDate).toBe(1793298600000);
     });
 
     it('handles a clone without cycle data or delivery rules', () => {
-        expect(dropCloneSourceDeliveryDates({ additionalDetails: { cloneFrom: 'CMP-SRC' } })).toBe(0);
+        expect(dropCloneSourceDeliveryDates({ additionalDetails: { cloneFrom: 'CMP-SRC' } }, true)).toBe(0);
     });
 });
 
@@ -287,22 +287,22 @@ describe('dropCloneSourceDeliveryRules (a new clone of another campaign type doe
         },
         deliveryRules: [{ code: 'MR-DN', cycles: [{ id: 1, startDate: 1793298600000, endDate: 1793989799000, deliveries: [{ id: 1, doseCriteria: [{ condition: '9<=ageandage<=59' }] }] }] }],
     });
-    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true, deliveryConditionCampaignTypes: ['POLIO'] }; });
+    beforeEach(() => { (config as any).mapping = { clearCloneDeliveryDates: true }; });
     afterAll(() => { delete (config as any).mapping; });
 
-    it('removes the delivery rules and cycle data of a clone whose campaign type is not listed, and keeps the rest', () => {
+    it('removes the delivery rules and cycle data of a clone whose campaign type does not offer Outside Household, and keeps the rest', () => {
         const c = clone();
-        expect(dropCloneSourceDeliveryRules(c)).toBe(true);
+        expect(dropCloneSourceDeliveryRules(c, false)).toBe(true);
         expect(c.deliveryRules).toEqual([]);
         expect(c.additionalDetails).toEqual({ cloneFrom: 'CMP-SRC', clonedCampaignId: 'src-id', beneficiaryType: 'INDIVIDUAL', cycleData: {} });
         // a clone that came with no rules is left in the same empty state and reports nothing removed
-        expect(dropCloneSourceDeliveryRules(c)).toBe(false);
+        expect(dropCloneSourceDeliveryRules(c, false)).toBe(false);
         expect(c.deliveryRules).toEqual([]);
     });
 
-    it('keeps the delivery rules of a POLIO clone (its dates are removed separately)', () => {
-        const c = clone(' polio ');
-        expect(dropCloneSourceDeliveryRules(c)).toBe(false);
+    it('keeps the delivery rules of a clone whose campaign type offers Outside Household (its dates are removed separately)', () => {
+        const c = clone('POLIO');
+        expect(dropCloneSourceDeliveryRules(c, true)).toBe(false);
         expect(c.deliveryRules[0].cycles[0].deliveries[0].doseCriteria[0].condition).toBe('9<=ageandage<=59');
         expect(c.additionalDetails.cycleData.cycleConfgureDate).toEqual({ cycle: 2, deliveries: 1 });
     });
@@ -313,12 +313,12 @@ describe('dropCloneSourceDeliveryRules (a new clone of another campaign type doe
         const finalCreate = { ...clone(), action: 'create' };
         const noType = { ...clone(), projectType: undefined };
         for (const c of [notClone, edit, finalCreate, noType]) {
-            expect(dropCloneSourceDeliveryRules(c)).toBe(false);
+            expect(dropCloneSourceDeliveryRules(c, false)).toBe(false);
             expect(c.deliveryRules).toHaveLength(1);
         }
         (config as any).mapping.clearCloneDeliveryDates = false;
         const off = clone();
-        expect(dropCloneSourceDeliveryRules(off)).toBe(false);
+        expect(dropCloneSourceDeliveryRules(off, false)).toBe(false);
         expect(off.deliveryRules).toHaveLength(1);
     });
 });
@@ -326,51 +326,66 @@ describe('dropCloneSourceDeliveryRules (a new clone of another campaign type doe
 describe('fileBeforeOutsideHouseholdChange (the new template keeps the data of the file uploaded before)', () => {
     const UNIFIED = 'unified-console-resources';
     const camp = (methods: string[], codes: string[], files: string[], hierarchyType = 'H'): any => ({
-        projectType: 'POLIO', hierarchyType, boundaries: codes.map(code => ({ code })), resources: files.map(f => ({ type: UNIFIED, filestoreId: f })),
+        tenantId: 'dev', projectType: 'POLIO', hierarchyType, boundaries: codes.map(code => ({ code })), resources: files.map(f => ({ type: UNIFIED, filestoreId: f })),
         additionalDetails: { cycleData: { deliveryMethods: methods } },
     });
     const req = (existing: any, incoming: any) => ({ body: { ExistingCampaignDetails: existing, CampaignDetails: incoming } });
-    beforeEach(() => { (config as any).mapping = { keepDataOnOutsideHouseholdChange: true, deliveryConditionCampaignTypes: ['POLIO'] }; });
+    beforeEach(() => {
+        (config as any).mapping = { keepDataOnOutsideHouseholdChange: true };
+        // As in MDMS: only the POLIO projectTypes record lists OUTSIDEHOUSEHOLD in deliveryMethods
+        jest.mocked(searchMDMSDataViaV2Api).mockImplementation(async (criteria: any) => ({
+            mdms: criteria?.MdmsCriteria?.filters?.code === 'POLIO'
+                ? [{ isActive: true, data: { code: 'POLIO', deliveryMethods: [{ code: 'HOUSEHOLDSTRATEGY' }, { code: 'OUTSIDEHOUSEHOLD' }] } }] as any
+                : [],
+        }));
+    });
     afterAll(() => { delete (config as any).mapping; });
 
-    it('gives nothing for a campaign type that is not listed (POLIO only by default)', () => {
+    it('gives nothing for a campaign type that does not offer Outside Household in MDMS', async () => {
         const other = (c: any) => ({ ...c, projectType: 'MR-DN' });
-        expect(fileBeforeOutsideHouseholdChange(req(other(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1'])), other(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']))))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(other(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1'])), other(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']))))).toBeNull();
     });
 
-    it('gives the file of a campaign that drops or adds Outside Household on the same area', () => {
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A', 'B'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['B', 'A'], ['F1'])))).toBe('F1');
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F1');
+    it('gives the file for any campaign type whose MDMS record offers Outside Household', async () => {
+        const smc = (c: any) => ({ ...c, projectType: 'SMC' });
+        expect(await fileBeforeOutsideHouseholdChange(req(smc(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1'])), smc(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']))))).toBeNull();
+        jest.mocked(searchMDMSDataViaV2Api).mockResolvedValueOnce({ mdms: [{ isActive: true, data: { code: 'SMC', deliveryMethods: ['OUTSIDEHOUSEHOLD'] } }] as any });
+        expect(await fileBeforeOutsideHouseholdChange(req(smc(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1'])), smc(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']))))).toBe('F1');
     });
 
-    it('gives nothing when the choice did not change, the area or hierarchy changed, or the save brings a new file', () => {
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['OUTSIDEHOUSEHOLD', 'HOUSEHOLDSTRATEGY'], ['A'], ['F1'])))).toBeNull();
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A', 'C'], ['F1'])))).toBeNull();
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1'], 'H2')))).toBeNull();
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F2'])))).toBeNull();
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], []), camp(['HOUSEHOLDSTRATEGY'], ['A'], [])))).toBeNull();
+    it('gives the file of a campaign that drops or adds Outside Household on the same area', async () => {
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A', 'B'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['B', 'A'], ['F1'])))).toBe('F1');
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F1');
     });
 
-    it('gives nothing when the switch is off', () => {
+    it('gives nothing when the choice did not change, the area or hierarchy changed, or the save brings a new file', async () => {
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['OUTSIDEHOUSEHOLD', 'HOUSEHOLDSTRATEGY'], ['A'], ['F1'])))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A', 'C'], ['F1'])))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1'], 'H2')))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F2'])))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], []), camp(['HOUSEHOLDSTRATEGY'], ['A'], [])))).toBeNull();
+    });
+
+    it('gives nothing when the switch is off', async () => {
         (config as any).mapping.keepDataOnOutsideHouseholdChange = false;
-        expect(fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1'])))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(camp(['OUTSIDEHOUSEHOLD'], ['A'], ['F1']), camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F1'])))).toBeNull();
     });
 
     // The save that changes the choice detaches the file; the campaign keeps its id for the next change
     const kept = (c: any, fileStoreId: string, campaignId = 'c1') => ({ ...c, id: 'c1', additionalDetails: { ...c.additionalDetails, [KEPT_FILE_KEY]: { campaignId, fileStoreId } } });
 
-    it('gives the kept file when Outside Household is added back and no file is attached any more', () => {
-        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F1');
+    it('gives the kept file when Outside Household is added back and no file is attached any more', async () => {
+        expect(await fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F1');
         // the console sending the detached file back is not a new file
-        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], ['F1'])))).toBe('F1');
+        expect(await fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], ['F1'])))).toBe('F1');
         // an attached file comes first
-        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F2']), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F2');
+        expect(await fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], ['F2']), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBe('F2');
     });
 
-    it('does not give a kept file copied from another campaign, or after the area changed', () => {
-        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1', 'source'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBeNull();
-        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A', 'B'], [])))).toBeNull();
-        expect(fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], ['F2'])))).toBeNull();
+    it('does not give a kept file copied from another campaign, or after the area changed', async () => {
+        expect(await fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1', 'source'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], [])))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A', 'B'], [])))).toBeNull();
+        expect(await fileBeforeOutsideHouseholdChange(req(kept(camp(['HOUSEHOLDSTRATEGY'], ['A'], []), 'F1'), camp(['HOUSEHOLDSTRATEGY', 'OUTSIDEHOUSEHOLD'], ['A'], ['F2'])))).toBeNull();
     });
 
     describe('keepFileForOutsideHouseholdChange', () => {

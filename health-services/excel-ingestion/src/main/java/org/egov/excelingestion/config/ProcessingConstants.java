@@ -37,6 +37,10 @@ public class ProcessingConstants {
     // Facility additionalFields entry holding a site's category
     public static final String OUTSIDE_HOUSEHOLD_CATEGORY_ADDITIONAL_FIELD_KEY = "outsideHouseholdCategory";
 
+    // MDMS master of campaign types: a type offers Outside Household when its deliveryMethods list OUTSIDEHOUSEHOLD
+    public static final String PROJECT_TYPES_SCHEMA_CODE = "HCM-PROJECT-TYPES.projectTypes";
+    public static final String PROJECT_TYPE_DELIVERY_METHODS_FIELD = "deliveryMethods";
+
     // MDMS master of site types: rows {"code","active","isPermanentByDefault","categories"}; no active row = no Outside Household sheet
     public static final String OUTSIDE_HOUSEHOLD_TYPES_SCHEMA_CODE = "HCM.OUTSIDE_HOUSEHOLD_TYPES";
     public static final String OUTSIDE_HOUSEHOLD_TYPE_CODE_FIELD = "code";

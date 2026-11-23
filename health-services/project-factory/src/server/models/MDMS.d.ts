@@ -30,6 +30,8 @@ interface MDMSv2Criteria {
   schemaCode: string; // Code representing the schema to query
   ids?: string[]; // Optional array of specific IDs to fetch
   uniqueIdentifiers?: string[]; // Optional array of unique identifiers for the data
+  filters?: Record<string, unknown>; // Optional field values the records' data must match
+  isActive?: boolean; // Optional: only active (true) or inactive (false) records
 }
 
 /**

@@ -26,7 +26,8 @@ jest.mock('../utils/resourceDetailsUtils', () => ({ findActiveResourceByUpsertKe
 jest.mock('../utils/genericUtils', () => ({ prepareProcessesForResourceTypes: jest.fn(), getCurrentProcesses: jest.fn() }));
 jest.mock('../kafka/Producer', () => ({ produceModifiedMessages: jest.fn() }));
 jest.mock('../config/resourceTypeRegistry', () => ({ getRegistryEntry: jest.fn() }));
-jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn(), keepCloneLineage: jest.fn(() => []), dropCloneSourceDeliveryDates: jest.fn(() => 0), dropCloneSourceDeliveryRules: jest.fn(() => false), fileBeforeOutsideHouseholdChange: jest.fn(() => null), keepFileForOutsideHouseholdChange: jest.fn(() => null) }));
+jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn(), keepCloneLineage: jest.fn(() => []), dropCloneSourceDeliveryDates: jest.fn(() => 0), dropCloneSourceDeliveryRules: jest.fn(() => false), fileBeforeOutsideHouseholdChange: jest.fn(async () => null), keepFileForOutsideHouseholdChange: jest.fn(() => null) }));
+jest.mock('../utils/deliveryMethodUtils', () => ({ campaignTypeOffersOutsideHousehold: jest.fn() }));
 
 import config from '../config';
 import { createProjectTypeCampaignService, updateProjectTypeCampaignService } from '../service/campaignManageService';
@@ -35,6 +36,7 @@ import { validateEditFile, validateProjectCampaignRequest } from '../validators/
 import { createResourceDetail, deactivateAllResourcesForCampaign, undoSavedResources, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
 import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
+import { campaignTypeOffersOutsideHousehold } from '../utils/deliveryMethodUtils';
 
 const UNIFIED = 'unified-console-resources';
 const existing = { id: 'c1', tenantId: 'tn', hierarchyType: 'H', resources: [{ type: UNIFIED, filestoreId: 'OLD' }] };
@@ -263,12 +265,28 @@ describe('createProjectTypeCampaignService', () => {
         expect(dropCloneSourceFileIfOutsideHouseholdChoiceDiffers).toHaveBeenCalledWith(create.body.CampaignDetails);
         expect((dropCloneSourceFileIfOutsideHouseholdChoiceDiffers as jest.Mock).mock.invocationCallOrder[0])
             .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
-        expect(dropCloneSourceDeliveryDates).toHaveBeenCalledWith(create.body.CampaignDetails);
+        expect(dropCloneSourceDeliveryDates).toHaveBeenCalledWith(create.body.CampaignDetails, false);
         expect((dropCloneSourceDeliveryDates as jest.Mock).mock.invocationCallOrder[0])
             .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
-        expect(dropCloneSourceDeliveryRules).toHaveBeenCalledWith(create.body.CampaignDetails);
+        expect(dropCloneSourceDeliveryRules).toHaveBeenCalledWith(create.body.CampaignDetails, false);
         expect((dropCloneSourceDeliveryRules as jest.Mock).mock.invocationCallOrder[0])
             .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
+    });
+
+    it('reads MDMS only for a new clone, once, and passes the answer to both delivery steps', async () => {
+        jest.mocked(campaignTypeOffersOutsideHousehold).mockClear();
+        const notClone = request([]);
+        await createProjectTypeCampaignService(notClone);
+        expect(campaignTypeOffersOutsideHousehold).not.toHaveBeenCalled();
+
+        jest.mocked(campaignTypeOffersOutsideHousehold).mockResolvedValueOnce(true);
+        const clone = request([]);
+        clone.body.CampaignDetails = { ...clone.body.CampaignDetails, projectType: 'SMC', additionalDetails: { cloneFrom: 'CMP-SRC' } };
+        await createProjectTypeCampaignService(clone);
+        expect(campaignTypeOffersOutsideHousehold).toHaveBeenCalledTimes(1);
+        expect(campaignTypeOffersOutsideHousehold).toHaveBeenCalledWith('tn', 'SMC');
+        expect(dropCloneSourceDeliveryDates).toHaveBeenLastCalledWith(clone.body.CampaignDetails, true);
+        expect(dropCloneSourceDeliveryRules).toHaveBeenLastCalledWith(clone.body.CampaignDetails, true);
     });
 });
 
