@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -252,20 +253,22 @@ public class ProjectTaskTransformationService {
         });
     }
 
-    // scanResource is a ';' separated list of scans, entries containing MANUAL are manual entries, the rest are QR scans
+    // scanResource is a delimiter separated list of scans, entries containing the manual identifier are manual entries, the rest are QR scans
     private void addScanCounts(ObjectNode additionalDetails) {
-        if (!additionalDetails.hasNonNull(SCAN_RESOURCE)) {
+        String scanResourceKey = transformerProperties.getScanResourceKey();
+        if (!additionalDetails.hasNonNull(scanResourceKey)) {
             return;
         }
-        String scanResource = additionalDetails.get(SCAN_RESOURCE).asText();
+        String scanResource = additionalDetails.get(scanResourceKey).asText();
+        String manualIdentifier = transformerProperties.getScanResourceManualIdentifier();
         int qrScans = 0;
         int manualScans = 0;
         if (StringUtils.isNotBlank(scanResource)) {
-            for (String scan : scanResource.split(SCAN_RESOURCE_DELIMITER)) {
+            for (String scan : scanResource.split(Pattern.quote(transformerProperties.getScanResourceDelimiter()))) {
                 if (StringUtils.isBlank(scan)) {
                     continue;
                 }
-                if (StringUtils.containsIgnoreCase(scan, MANUAL)) {
+                if (StringUtils.containsIgnoreCase(scan, manualIdentifier)) {
                     manualScans++;
                 } else {
                     qrScans++;

@@ -85,11 +85,8 @@ public interface Constants {
     String CHILDREN = "children";
     String ISVULNERABLE = "isVulnerable";
     String REQUIRED_BEDNETS = "requiredBednets";
-    String SCAN_RESOURCE = "scanResource";
     String QR_SCANS = "qrScans";
     String MANUAL_SCANS = "manualScans";
-    String MANUAL = "MANUAL";
-    String SCAN_RESOURCE_DELIMITER = ";";
     String CLOSED_HOUSEHOLD ="CLOSED_HOUSEHOLD";
     String REASON_OF_REFUSAL = "reasonOfRefusal";
     String NO_OF_ROOMS= "noOfRooms";

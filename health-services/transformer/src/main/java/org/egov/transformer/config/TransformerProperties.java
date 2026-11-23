@@ -274,4 +274,14 @@ public class TransformerProperties {
 
     @Value("${hcm.bednets.limit.per.household:3}")
     private Integer bednetsLimitPerHousehold;
+
+    // Bale / bednet scan counts from task additionalDetails
+    @Value("${transformer.scan.resource.key:scanResource}")
+    private String scanResourceKey;
+
+    @Value("${transformer.scan.resource.delimiter:;}")
+    private String scanResourceDelimiter;
+
+    @Value("${transformer.scan.resource.manual.identifier:MANUAL}")
+    private String scanResourceManualIdentifier;
 }
