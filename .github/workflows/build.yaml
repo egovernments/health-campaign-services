@@ -78,9 +78,9 @@ env:
   DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
   # Branches on which the Trivy code/image scans run and gate the build. JSON
   # list - add a branch to enable scanning there. master is intentionally absent
-  # (scans disabled) until the gh-pages publish ruleset is sorted; "test" is a
-  # dummy branch for verifying the gates end-to-end.
-  SCAN_ENABLED_BRANCHES: '["test"]'
+  # (scans disabled) until the gh-pages publish ruleset is sorted; the dashboard
+  # push now uses the digit-devops-workflows App token (a ruleset bypass actor).
+  SCAN_ENABLED_BRANCHES: '["test","HCMPRE-0000-trivy-dashboard-appbypass"]'
 
 jobs:
   resolve-config:
@@ -273,6 +273,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Mint dashboard-push token (digit-devops-workflows App)
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Trivy filesystem scan (code)
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         env:
@@ -294,7 +301,7 @@ jobs:
       - name: Evaluate gate & publish dashboard
         id: gate
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BRANCH: ${{ github.ref_name }}
         run: |
           SERVICE="${{ needs.resolve-config.outputs.service_image_name }}"
@@ -329,6 +336,13 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Mint dashboard-push token (digit-devops-workflows App)
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -369,7 +383,7 @@ jobs:
       - name: Evaluate gate & publish dashboard
         id: gate
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BRANCH: ${{ github.ref_name }}
         run: |
           SERVICE="${{ needs.resolve-config.outputs.service_image_name }}"
