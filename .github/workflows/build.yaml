@@ -80,7 +80,7 @@ env:
   # list - add a branch to enable scanning there. master is intentionally absent
   # (scans disabled) until the gh-pages publish ruleset is sorted; the dashboard
   # push now uses the digit-devops-workflows App token (a ruleset bypass actor).
-  SCAN_ENABLED_BRANCHES: '["test","HCMPRE-0000-trivy-dashboard-publish"]'
+  SCAN_ENABLED_BRANCHES: '["test","HCMPRE-0000-trivy-scan-master"]'
 
 jobs:
   resolve-config:
@@ -272,6 +272,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          ref: master          # scan master's source even when dispatched from another branch
 
       - name: Mint dashboard-push token (digit-devops-workflows App)
         id: app-token
@@ -302,8 +304,9 @@ jobs:
         id: gate
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: master
         run: |
+          export GITHUB_SHA="$(git rev-parse HEAD)"   # record master's commit on the card
           SERVICE="${{ needs.resolve-config.outputs.service_image_name }}"
           CRIT=$(jq '[.Results[]? | (.Vulnerabilities[]?, .Secrets[]?) | select(.Severity=="CRITICAL")] | length' code-scan.json)
           GATE=pass; [ "$CRIT" -gt 0 ] && GATE=fail
@@ -336,6 +339,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          ref: master          # scan master's source even when dispatched from another branch
 
       - name: Mint dashboard-push token (digit-devops-workflows App)
         id: app-token
@@ -384,8 +389,9 @@ jobs:
         id: gate
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: master
         run: |
+          export GITHUB_SHA="$(git rev-parse HEAD)"   # record master's commit on the card
           SERVICE="${{ needs.resolve-config.outputs.service_image_name }}"
           CRIT=$(jq '[.Results[]? | (.Vulnerabilities[]?, .Secrets[]?) | select(.Severity=="CRITICAL")] | length' image-scan.json)
           GATE=pass; [ "$CRIT" -gt 0 ] && GATE=fail
@@ -405,13 +411,13 @@ jobs:
   build-matrix:
     name: Build image for ${{ matrix.arch }}
     needs: [resolve-config, code-scan, image-scan]
-    # Build when the scan gates passed, OR when scanning is disabled for this
-    # branch (not in SCAN_ENABLED_BRANCHES). On a scan-enabled branch, a failed or
-    # skipped scan (a skipped image-scan means the code gate failed) blocks the
-    # build. Branches with scanning disabled are never blocked.
+    # Only build+push on master. Dashboard-population runs dispatched from another
+    # branch run the scans only (they checkout master) and never push an image.
+    # On master: build when the scan gates passed, or when scanning is disabled.
     if: >-
       ${{ !cancelled()
           && needs.resolve-config.result == 'success'
+          && github.ref_name == 'master'
           && (needs.resolve-config.outputs.scan_enabled != 'true'
               || (needs.code-scan.result == 'success' && needs.image-scan.result == 'success')) }}
     strategy:
