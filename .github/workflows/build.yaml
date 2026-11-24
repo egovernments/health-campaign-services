@@ -80,7 +80,7 @@ env:
   # list - add a branch to enable scanning there. master is intentionally absent
   # (scans disabled) until the gh-pages publish ruleset is sorted; the dashboard
   # push now uses the digit-devops-workflows App token (a ruleset bypass actor).
-  SCAN_ENABLED_BRANCHES: '["test","HCMPRE-0000-trivy-dashboard-appbypass"]'
+  SCAN_ENABLED_BRANCHES: '["test","HCMPRE-0000-trivy-dashboard-publish"]'
 
 jobs:
   resolve-config:
