@@ -1,0 +1,1 @@
+{"service": "project-factory", "build_id": "45420144954", "scanned_at": "2026-11-24T14:59:14Z", "branch": "master", "commit": "b4c690742607cd36c6a1d9d5aa917b8129d9fba0", "actor": "shivam-eGov", "status": "code-failed", "score": 1, "code": {"critical": 3, "high": 68, "medium": 57, "total": 128, "secrets": 0, "score": 1, "gate": "fail"}, "image": null, "build_count": 1}
