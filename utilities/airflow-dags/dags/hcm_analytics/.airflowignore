@@ -1,0 +1,18 @@
+# Importable modules, not DAG files. None of these defines a DAG.
+#
+# Airflow's safe-mode DAG discovery imports any .py file containing the string
+# "dag" or "airflow", and every entry below mentions one or the other. That
+# makes Airflow import them standalone as DAG candidates, so any failure inside
+# them surfaces in the UI as a spurious DAG import error even though none
+# defines a DAG -- clickhouse_utils.py imports clickhouse_connect at module
+# level and can trip the dag-processor parse timeout that way.
+#
+# This only affects DAG *discovery* -- the modules stay importable from the
+# orchestrator and transformation DAGs as normal.
+#
+# Matched as globs: core.dag_ignore_file_syntax is "glob" here, not regexp.
+# Edits take effect only after the dag-processor restarts.
+clickhouse_utils.py
+egov_api_utils.py
+raw_event_bronze_config.py
+raw_event_bronze_processor.py
