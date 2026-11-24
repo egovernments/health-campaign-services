@@ -1,0 +1,1 @@
+{"service": "health-services-common", "build_id": "45419515609", "scanned_at": "2026-11-24T14:55:58Z", "branch": "master", "commit": "b4c690742607cd36c6a1d9d5aa917b8129d9fba0", "actor": "shivam-eGov", "status": "image-pending", "score": 10, "code": {"critical": 0, "high": 0, "medium": 0, "total": 0, "secrets": 0, "score": 10, "gate": "pass"}, "image": null, "build_count": 1}
