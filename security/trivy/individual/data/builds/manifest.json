@@ -1,0 +1,1 @@
+{"builds": [{"id": "45419729967", "scanned_at": "2026-11-24T14:57:01Z", "commit": "b4c690742607cd36c6a1d9d5aa917b8129d9fba0", "branch": "master", "actor": "shivam-eGov", "status": "code-failed", "score": 5, "code": {"critical": 1, "high": 1, "medium": 0, "total": 2, "secrets": 0, "score": 5, "gate": "fail"}, "image": null}]}
