@@ -1,0 +1,1 @@
+{"builds": [{"id": "45415340155", "scanned_at": "2026-11-24T14:33:26Z", "commit": "0d83fa4a7fd724d1d4fac32d16811f9d96d88b84", "branch": "HCMPRE-0000-trivy-dashboard-publish", "actor": "shivam-eGov", "status": "code-failed", "score": 1, "code": {"critical": 2, "high": 62, "medium": 48, "total": 112, "secrets": 0, "score": 1, "gate": "fail"}, "image": null}]}
