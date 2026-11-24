@@ -1,0 +1,1 @@
+{"service": "inbox", "build_id": "45419657533", "scanned_at": "2026-11-24T14:56:36Z", "branch": "master", "commit": "b4c690742607cd36c6a1d9d5aa917b8129d9fba0", "actor": "shivam-eGov", "status": "code-failed", "score": 4, "code": {"critical": 1, "high": 3, "medium": 14, "total": 18, "secrets": 0, "score": 4, "gate": "fail"}, "image": null, "build_count": 1}
