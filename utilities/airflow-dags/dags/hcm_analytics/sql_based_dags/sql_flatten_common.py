@@ -1318,7 +1318,7 @@ def build_sql_dag(spec: EntitySpec):
         start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
         catchup=False,
         max_active_runs=1,
-        tags=["bronze-to-silver", spec.entity, "sql"],
+        tags=["clickhouse-analytics", "clickhouse", "bronze-to-silver", spec.entity, "sql"],
     )
     def sql_dag():
 

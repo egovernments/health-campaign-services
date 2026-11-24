@@ -50,6 +50,7 @@ with DAG(
         "raw",
         "bronze",
         "clickhouse",
+        "clickhouse-analytics",
     ],
 ) as dag:
 

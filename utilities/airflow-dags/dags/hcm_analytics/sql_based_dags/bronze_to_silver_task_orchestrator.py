@@ -287,6 +287,6 @@ _entities = _entity_order if _entity_order is not None else _available_entities(
 dag = _build_dag(
     "bronze_to_silver_task_orchestrator",
     "Runs every entity's bronze-to-silver transform as a task of this one DAG.",
-    ["bronze-to-silver", "orchestrator", "sql"],
+    ["clickhouse-analytics", "clickhouse", "bronze-to-silver", "orchestrator", "sql"],
     [(entity, _runner(spec)) for entity in _entities if (spec := _load_spec(entity)) is not None],
 )
