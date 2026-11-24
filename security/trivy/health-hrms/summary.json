@@ -1,0 +1,1 @@
+{"service": "health-hrms", "build_id": "45419090341", "scanned_at": "2026-11-24T14:53:41Z", "branch": "master", "commit": "b4c690742607cd36c6a1d9d5aa917b8129d9fba0", "actor": "shivam-eGov", "status": "code-failed", "score": 5, "code": {"critical": 1, "high": 2, "medium": 2, "total": 5, "secrets": 0, "score": 5, "gate": "fail"}, "image": null, "build_count": 1}
