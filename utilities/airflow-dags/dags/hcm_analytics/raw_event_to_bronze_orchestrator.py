@@ -32,10 +32,15 @@ MAX_ACTIVE_TASKS = 5
 
 
 def get_schedule():
-    return Variable.get(
+    schedule = Variable.get(
         "raw_to_bronze_schedule",
         default_var=DEFAULT_SCHEDULE,
     )
+    # Variables are text: "None" means manual only (a real None), as for
+    # task_orchestrator_schedule. Any other value is passed through unchanged.
+    if isinstance(schedule, str) and schedule.strip().lower() == "none":
+        return None
+    return schedule
 
 
 with DAG(
