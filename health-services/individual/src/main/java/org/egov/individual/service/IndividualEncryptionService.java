@@ -11,7 +11,7 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.util.EncryptionDecryptionUtil;
+import org.egov.individual.web.models.StoredIdentifier;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -19,7 +19,6 @@ import org.springframework.util.CollectionUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.egov.common.utils.CommonUtils.getTenantId;
@@ -31,65 +30,35 @@ import static org.egov.individual.Constants.VALIDATION_ERROR;
 @Service
 @Slf4j
 public class IndividualEncryptionService {
-    private final EncryptionDecryptionUtil encryptionDecryptionUtil;
+    private final IndividualPiiCryptoService piiCryptoService;
 
     private final IndividualRepository individualRepository;
 
-    public IndividualEncryptionService(EncryptionDecryptionUtil encryptionDecryptionUtil,
+    public IndividualEncryptionService(IndividualPiiCryptoService piiCryptoService,
                                        IndividualRepository individualRepository) {
-        this.encryptionDecryptionUtil = encryptionDecryptionUtil;
+        this.piiCryptoService = piiCryptoService;
         this.individualRepository = individualRepository;
     }
 
-
+    /**
+     * Encrypts every PII field (one enc-service call for the batch) and checks Aadhaar
+     * uniqueness on the hash. The key argument is kept for callers; field selection now lives
+     * in IndividualPiiCryptoService instead of the MDMS IndividualEncrypt policy.
+     */
     public List<Individual> encrypt(IndividualBulkRequest request, List<Individual> individuals, String key, boolean isBulk) {
-        List<Individual> encryptedIndividuals = (List<Individual>) encryptionDecryptionUtil
-                .encryptObject(individuals, key, Individual.class);
+        List<Individual> encryptedIndividuals = piiCryptoService.encrypt(individuals);
         validateAadhaarUniqueness(encryptedIndividuals, request, isBulk);
         return encryptedIndividuals;
     }
 
-    public IndividualSearch encrypt(IndividualSearch individualSearch, String key) {
-        IndividualSearch encryptedIndividualSearch = (IndividualSearch) encryptionDecryptionUtil
-                .encryptObject(individualSearch, key, IndividualSearch.class);
-        return encryptedIndividualSearch;
+    /** Stored (encrypted) form without the duplicate checks, for messages such as delete. */
+    public List<Individual> toStoredForm(List<Individual> individuals) {
+        return piiCryptoService.encrypt(individuals);
     }
 
+    /** Decrypts whatever is cipher text; plain values (rows not yet backfilled) are left as they are. */
     public List<Individual> decrypt(List<Individual> individuals, String key, RequestInfo requestInfo) {
-        List<Individual> encryptedIndividuals = filterEncryptedIndividuals(individuals);
-        List<Individual> decryptedIndividuals = (List<Individual>) encryptionDecryptionUtil
-                .decryptObject(encryptedIndividuals, key, Individual.class, requestInfo);
-        if (individuals.size() > decryptedIndividuals.size()) {
-            // add the already decrypted objects to the list
-            List<String> ids = decryptedIndividuals.stream()
-                    .map(Individual::getId)
-                    .collect(Collectors.toList());
-            for (Individual individual : individuals) {
-                if (!ids.contains(individual.getId())) {
-                    decryptedIndividuals.add(individual);
-                }
-            }
-        }
-        return decryptedIndividuals;
-    }
-
-    private List<Individual> filterEncryptedIndividuals(List<Individual> individuals) {
-        return individuals.stream()
-                .filter(individual -> isCipherText(individual.getMobileNumber())
-                        || isCipherText(!CollectionUtils.isEmpty(individual.getIdentifiers())
-                        ? individual.getIdentifiers().stream().findAny().get().getIdentifierId()
-                        : null))
-                .collect(Collectors.toList());
-    }
-
-    private boolean isCipherText(String text) {
-        //sample encrypted data - 640326|7hsFfY6olwUbet1HdcLxbStR1BSkOye8N3M=
-        //Encrypted data will have a prefix followed by '|' and the base64 encoded data
-        if ((StringUtils.isNotBlank(text) && text.contains("|"))) {
-            String base64Data = text.split("\\|")[1];
-            return StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="));
-        }
-        return false;
+        return piiCryptoService.decrypt(individuals, requestInfo);
     }
 
     private void validateAadhaarUniqueness (List<Individual> individuals, IndividualBulkRequest request, boolean isBulk) {
@@ -104,8 +73,15 @@ public class IndividualEncryptionService {
                             .filter(id -> id.getIdentifierType().contains("AADHAAR"))
                             .findFirst().orElse(null);
                     if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
-                        Identifier identifierSearch = Identifier.builder().identifierType(identifier
-                                .getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
+                        // identifierId is cipher text here; the repository matches on the hash
+                        StoredIdentifier identifierSearch = new StoredIdentifier();
+                        identifierSearch.setIsDeleted(null);  // no isDeleted filter, same as before
+                        identifierSearch.setIdentifierType(identifier.getIdentifierType());
+                        identifierSearch.setIdentifierIdHash(identifier instanceof StoredIdentifier
+                                ? ((StoredIdentifier) identifier).getIdentifierIdHash() : null);
+                        if (identifierSearch.getIdentifierIdHash() == null) {
+                            identifierSearch.setIdentifierId(identifier.getIdentifierId());
+                        }
                         IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
                         List<Individual> individualsList = null;
                         try {

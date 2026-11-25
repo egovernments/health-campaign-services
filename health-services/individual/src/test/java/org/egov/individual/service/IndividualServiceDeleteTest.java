@@ -112,6 +112,8 @@ class IndividualServiceDeleteTest {
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
+        // stored form: one copy per record (the real service encrypts each one)
+        org.mockito.Mockito.when(encryptionService.toStoredForm(anyList())).thenAnswer(call -> call.getArgument(0));
 
         individualService.delete(request);
         verify(individualRepository, times(1)).save(anyList(), anyString());

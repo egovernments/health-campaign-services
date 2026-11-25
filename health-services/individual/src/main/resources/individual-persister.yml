@@ -26,7 +26,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.street
             - jsonPath: $.*.address.*.locality.code
             - jsonPath: $.*.address.*.ward.code
-        - query: INSERT INTO public.individual(id, userId, userUuid, clientReferenceId, tenantId, givenName, familyName, otherNames, dateOfBirth, gender, bloodGroup, mobileNumber, altContactNumber, email, fatherName, husbandName, photo, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, individualId, relationship, isSystemUser, username, type, roles) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO public.individual(id, userId, userUuid, clientReferenceId, tenantId, givenName, familyName, otherNames, dateOfBirth, gender, bloodGroup, mobileNumber, altContactNumber, email, fatherName, husbandName, photo, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, individualId, relationship, isSystemUser, username, type, roles, mobileNumberHash, givenNameHash, usernameHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -37,10 +37,9 @@ serviceMaps:
             - jsonPath: $.*.name.givenName
             - jsonPath: $.*.name.familyName
             - jsonPath: $.*.name.otherNames
-            - jsonPath: $.*.dateOfBirth
-              type: DATE
-            - jsonPath: $.*.gender
-            - jsonPath: $.*.bloodGroup
+            - jsonPath: $.*.dateOfBirthCipher
+            - jsonPath: $.*.genderCipher
+            - jsonPath: $.*.bloodGroupCipher
             - jsonPath: $.*.mobileNumber
             - jsonPath: $.*.altContactNumber
             - jsonPath: $.*.email
@@ -64,6 +63,9 @@ serviceMaps:
             - jsonPath: $.*.userDetails.roles
               type: JSON
               dbType: JSONB
+            - jsonPath: $.*.mobileNumberHash
+            - jsonPath: $.*.givenNameHash
+            - jsonPath: $.*.usernameHash
         - query: INSERT INTO public.individual_address(individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.address.*
           jsonMaps:
@@ -75,7 +77,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.auditDetails.createdTime
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.address.*.isDeleted
-        - query: INSERT INTO public.individual_identifier(id, clientReferenceId, identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO public.individual_identifier(id, clientReferenceId, identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, identifierIdHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.identifiers.*
           jsonMaps:
             - jsonPath: $.*.identifiers.*.id
@@ -88,6 +90,7 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.createdTime
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
+            - jsonPath: $.*.identifiers.*.identifierIdHash
         - query: INSERT INTO public.individual_skill(id, clientReferenceId, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.skills.*
           jsonMaps:
@@ -128,7 +131,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.street
             - jsonPath: $.*.address.*.locality.code
             - jsonPath: $.*.address.*.ward.code
-        - query: INSERT INTO statea.individual(id, userId, userUuid, clientReferenceId, tenantId, givenName, familyName, otherNames, dateOfBirth, gender, bloodGroup, mobileNumber, altContactNumber, email, fatherName, husbandName, photo, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, individualId, relationship, isSystemUser, username, type, roles) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO statea.individual(id, userId, userUuid, clientReferenceId, tenantId, givenName, familyName, otherNames, dateOfBirth, gender, bloodGroup, mobileNumber, altContactNumber, email, fatherName, husbandName, photo, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted, individualId, relationship, isSystemUser, username, type, roles, mobileNumberHash, givenNameHash, usernameHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -139,10 +142,9 @@ serviceMaps:
             - jsonPath: $.*.name.givenName
             - jsonPath: $.*.name.familyName
             - jsonPath: $.*.name.otherNames
-            - jsonPath: $.*.dateOfBirth
-              type: DATE
-            - jsonPath: $.*.gender
-            - jsonPath: $.*.bloodGroup
+            - jsonPath: $.*.dateOfBirthCipher
+            - jsonPath: $.*.genderCipher
+            - jsonPath: $.*.bloodGroupCipher
             - jsonPath: $.*.mobileNumber
             - jsonPath: $.*.altContactNumber
             - jsonPath: $.*.email
@@ -166,6 +168,9 @@ serviceMaps:
             - jsonPath: $.*.userDetails.roles
               type: JSON
               dbType: JSONB
+            - jsonPath: $.*.mobileNumberHash
+            - jsonPath: $.*.givenNameHash
+            - jsonPath: $.*.usernameHash
         - query: INSERT INTO statea.individual_address(individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.address.*
           jsonMaps:
@@ -177,7 +182,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.auditDetails.createdTime
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.address.*.isDeleted
-        - query: INSERT INTO statea.individual_identifier(id, clientReferenceId, identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO statea.individual_identifier(id, clientReferenceId, identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, identifierIdHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.identifiers.*
           jsonMaps:
             - jsonPath: $.*.identifiers.*.id
@@ -190,6 +195,7 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.createdTime
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
+            - jsonPath: $.*.identifiers.*.identifierIdHash
         - query: INSERT INTO statea.individual_skill(id, clientReferenceId, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.skills.*
           jsonMaps:
@@ -210,7 +216,7 @@ serviceMaps:
       fromTopic: update-individual-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE public.individual SET userId=?, userUuid=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, relationship=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, username = ?, type = ?, roles = ? WHERE id=? AND isDeleted=false;
+        - query: UPDATE public.individual SET userId=?, userUuid=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, relationship=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, username = ?, type = ?, roles = ?, mobileNumberHash=?, givenNameHash=?, usernameHash=? WHERE id=? AND isDeleted=false;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.userId
@@ -219,10 +225,9 @@ serviceMaps:
             - jsonPath: $.*.name.givenName
             - jsonPath: $.*.name.familyName
             - jsonPath: $.*.name.otherNames
-            - jsonPath: $.*.dateOfBirth
-              type: DATE
-            - jsonPath: $.*.gender
-            - jsonPath: $.*.bloodGroup
+            - jsonPath: $.*.dateOfBirthCipher
+            - jsonPath: $.*.genderCipher
+            - jsonPath: $.*.bloodGroupCipher
             - jsonPath: $.*.mobileNumber
             - jsonPath: $.*.altContactNumber
             - jsonPath: $.*.email
@@ -241,6 +246,9 @@ serviceMaps:
             - jsonPath: $.*.userDetails.roles
               type: JSON
               dbType: JSONB
+            - jsonPath: $.*.mobileNumberHash
+            - jsonPath: $.*.givenNameHash
+            - jsonPath: $.*.usernameHash
             - jsonPath: $.*.id
         - query: INSERT INTO public.address(id, clientReferenceId, tenantId, doorNo, latitude, longitude, locationAccuracy, type, addressLine1, addressLine2, landmark, city, pincode, buildingName, street, localityCode, wardCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET doorno=?, latitude=?, longitude=?, locationaccuracy=?, type=?, addressline1=?, addressline2=?, landmark=?, city=?, pincode=?, buildingname=?, street=?, localitycode=?, wardCode=?;
           basePath: $.*.address.*
@@ -289,7 +297,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.isDeleted
             - jsonPath: $.*.address.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
-        - query: INSERT INTO public.individual_identifier(id, clientReferenceId, individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET identifierId = ?, identifierType = ?, lastModifiedBy = ?, lastModifiedTime = ?;
+        - query: INSERT INTO public.individual_identifier(id, clientReferenceId, individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, identifierIdHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET identifierId = ?, identifierIdHash = ?, identifierType = ?, lastModifiedBy = ?, lastModifiedTime = ?;
           basePath: $.*.identifiers.*
           jsonMaps:
             - jsonPath: $.*.identifiers.*.id
@@ -302,7 +310,9 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.createdTime
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
+            - jsonPath: $.*.identifiers.*.identifierIdHash
             - jsonPath: $.*.identifiers.*.identifierId
+            - jsonPath: $.*.identifiers.*.identifierIdHash
             - jsonPath: $.*.identifiers.*.identifierType
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
@@ -330,7 +340,7 @@ serviceMaps:
       fromTopic: statea-update-individual-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE statea.individual SET userId=?, userUuid=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, relationship=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, username = ?, type = ?, roles = ? WHERE id=? AND isDeleted=false;
+        - query: UPDATE statea.individual SET userId=?, userUuid=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, relationship=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, username = ?, type = ?, roles = ?, mobileNumberHash=?, givenNameHash=?, usernameHash=? WHERE id=? AND isDeleted=false;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.userId
@@ -339,10 +349,9 @@ serviceMaps:
             - jsonPath: $.*.name.givenName
             - jsonPath: $.*.name.familyName
             - jsonPath: $.*.name.otherNames
-            - jsonPath: $.*.dateOfBirth
-              type: DATE
-            - jsonPath: $.*.gender
-            - jsonPath: $.*.bloodGroup
+            - jsonPath: $.*.dateOfBirthCipher
+            - jsonPath: $.*.genderCipher
+            - jsonPath: $.*.bloodGroupCipher
             - jsonPath: $.*.mobileNumber
             - jsonPath: $.*.altContactNumber
             - jsonPath: $.*.email
@@ -361,6 +370,9 @@ serviceMaps:
             - jsonPath: $.*.userDetails.roles
               type: JSON
               dbType: JSONB
+            - jsonPath: $.*.mobileNumberHash
+            - jsonPath: $.*.givenNameHash
+            - jsonPath: $.*.usernameHash
             - jsonPath: $.*.id
         - query: INSERT INTO statea.address(id, clientReferenceId, tenantId, doorNo, latitude, longitude, locationAccuracy, type, addressLine1, addressLine2, landmark, city, pincode, buildingName, street, localityCode, wardCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET doorno=?, latitude=?, longitude=?, locationaccuracy=?, type=?, addressline1=?, addressline2=?, landmark=?, city=?, pincode=?, buildingname=?, street=?, localitycode=?, wardCode=?;
           basePath: $.*.address.*
@@ -409,7 +421,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.isDeleted
             - jsonPath: $.*.address.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
-        - query: INSERT INTO statea.individual_identifier(id, clientReferenceId, individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET identifierId = ?, identifierType = ?, lastModifiedBy = ?, lastModifiedTime = ?;
+        - query: INSERT INTO statea.individual_identifier(id, clientReferenceId, individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, identifierIdHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET identifierId = ?, identifierIdHash = ?, identifierType = ?, lastModifiedBy = ?, lastModifiedTime = ?;
           basePath: $.*.identifiers.*
           jsonMaps:
             - jsonPath: $.*.identifiers.*.id
@@ -422,7 +434,9 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.createdTime
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
+            - jsonPath: $.*.identifiers.*.identifierIdHash
             - jsonPath: $.*.identifiers.*.identifierId
+            - jsonPath: $.*.identifiers.*.identifierIdHash
             - jsonPath: $.*.identifiers.*.identifierType
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime

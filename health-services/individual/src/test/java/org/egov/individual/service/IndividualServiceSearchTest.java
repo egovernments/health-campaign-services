@@ -11,6 +11,7 @@ import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualSearchTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -90,8 +93,6 @@ class IndividualServiceSearchTest {
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
-
         when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(),
                 any(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder()
                 .totalCount(1L)
@@ -139,8 +140,6 @@ class IndividualServiceSearchTest {
         when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(), any(), anyBoolean()))
                 .thenReturn(SearchResponse.<Individual>builder().build());
 
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
-
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
@@ -153,10 +152,9 @@ class IndividualServiceSearchTest {
     void shouldCallFindIfParametersOtherThanIdArePresent() throws QueryBuilderException, InvalidTenantIdException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byClientReferenceId()
-                .byGender()
+                .byName()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
 
         when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(),
                 any(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder().totalCount(1L).response(Collections.singletonList(IndividualTestBuilder.builder()
@@ -168,5 +166,31 @@ class IndividualServiceSearchTest {
 
         verify(individualRepository, times(1))
                 .find(individualSearch, 0, 10, "default", null, false);
+    }
+
+    @Test
+    @DisplayName("search by a field that is not offered: the caller gets INDIVIDUAL_SEARCH_FIELD_NOT_SUPPORTED, not DATABASE_ERROR")
+    void unsupportedSearchFieldKeepsItsCode() throws QueryBuilderException, InvalidTenantIdException {
+        IndividualSearch individualSearch = IndividualSearchTestBuilder.builder().byGender().build();
+        when(individualRepository.find(any(IndividualSearch.class), any(), any(), anyString(), any(), any()))
+                .thenThrow(new CustomException("INDIVIDUAL_SEARCH_FIELD_NOT_SUPPORTED", "not supported"));
+
+        CustomException e = assertThrows(CustomException.class, () -> individualService.search(individualSearch, 0, 10,
+                "default", null, false, RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()));
+
+        assertEquals("INDIVIDUAL_SEARCH_FIELD_NOT_SUPPORTED", e.getCode());
+    }
+
+    @Test
+    @DisplayName("other search errors still answer DATABASE_ERROR, as before")
+    void otherSearchErrorsStillDatabaseError() throws QueryBuilderException, InvalidTenantIdException {
+        IndividualSearch individualSearch = IndividualSearchTestBuilder.builder().byGender().build();
+        when(individualRepository.find(any(IndividualSearch.class), any(), any(), anyString(), any(), any()))
+                .thenThrow(new CustomException("INVALID_SEARCH_PARAM", "Cannot specify createdToDate without a createdFromDate"));
+
+        CustomException e = assertThrows(CustomException.class, () -> individualService.search(individualSearch, 0, 10,
+                "default", null, false, RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()));
+
+        assertEquals("DATABASE_ERROR", e.getCode());
     }
 }

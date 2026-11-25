@@ -22,6 +22,7 @@ import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.Name;
 import org.egov.common.models.individual.Skill;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.CommonUtils;
@@ -29,6 +30,8 @@ import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
 import org.egov.individual.repository.rowmapper.SkillRowMapper;
+import org.egov.common.pii.PiiHasher;
+import org.egov.individual.web.models.StoredIdentifier;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -45,6 +48,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 import static org.egov.individual.Constants.INVALID_TENANT_ID;
 import static org.egov.individual.Constants.INVALID_TENANT_ID_MSG;
+import static org.egov.individual.Constants.SEARCH_FIELD_NOT_SUPPORTED;
 
 @Repository
 @Slf4j
@@ -53,13 +57,17 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private final String cteQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
     private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
 
+    private final PiiHasher piiHasher;
+
     protected IndividualRepository(@Qualifier("individualProducer")  Producer producer,
                                    NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                    RedisTemplate<String, Object> redisTemplate,
                                    SelectQueryBuilder selectQueryBuilder,
-                                   IndividualRowMapper individualRowMapper) {
+                                   IndividualRowMapper individualRowMapper,
+                                   PiiHasher piiHasher) {
         super(producer, namedParameterJdbcTemplate, redisTemplate,
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
+        this.piiHasher = piiHasher;
     }
 
     /**
@@ -110,6 +118,23 @@ public class IndividualRepository extends GenericRepository<Individual> {
         objFound.addAll(individuals);
         putInCache(objFound);
         return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
+    }
+
+    /**
+     * One page of stored rows in id order, deleted rows included, with their addresses, identifiers and skills,
+     * exactly as stored (cipher text and search hashes): what the one-time re-index job sends to the indexer.
+     * Reads the database, never the cache.
+     */
+    public List<Individual> findStoredPage(String tenantId, String afterId, int limit) throws InvalidTenantIdException {
+        String query = multiStateInstanceUtil.replaceSchemaPlaceholder(
+                String.format("SELECT * FROM %s.individual WHERE id > :afterId ORDER BY id LIMIT :limit", SCHEMA_REPLACE_STRING),
+                tenantId);
+        Map<String, Object> params = new HashMap<>();
+        params.put("afterId", afterId);
+        params.put("limit", limit);
+        List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, params, this.rowMapper);
+        enrichIndividualsInBulk(individuals, true);
+        return individuals;
     }
 
     /**
@@ -233,6 +258,22 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
 
+    /**
+     * Family name, other names, date of birth and gender are stored encrypted and have no search
+     * hash (no caller searches by them). Reject them instead of ignoring them: an ignored filter
+     * would return more rows than the caller asked for.
+     */
+    static void rejectUnsupportedPiiCriteria(IndividualSearch searchObject) {
+        Name name = searchObject.getName();
+        boolean unsupported = (name != null && (name.getFamilyName() != null || name.getOtherNames() != null))
+                || searchObject.getGender() != null || searchObject.getDateOfBirth() != null;
+        if (unsupported) {
+            throw new CustomException(SEARCH_FIELD_NOT_SUPPORTED,
+                    "Search by family name, other names, date of birth or gender is not supported. "
+                            + "Search by given name, mobile number, username, identifier or ID.");
+        }
+    }
+
     private Boolean isProximityBasedSearch(IndividualSearch searchObject) {
         return searchObject.getLatitude() != null && searchObject.getLongitude() != null && searchObject.getSearchRadius() != null;
     }
@@ -251,25 +292,42 @@ public class IndividualRepository extends GenericRepository<Individual> {
                                          String tenantId, Long lastChangedSince,
                                          Boolean includeDeleted, Map<String, Object> paramsMap) throws InvalidTenantIdException {
 
+        rejectUnsupportedPiiCriteria(searchObject);
         String query = String.format("SELECT * FROM %s.individual", SCHEMA_REPLACE_STRING);
-        List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
+        // PII columns hold cipher text, so the generic builder must not compare them with plain
+        // values. They are taken out here and matched on their hash columns below.
+        List<String> mobileNumbers = searchObject.getMobileNumber();
+        Name name = searchObject.getName();
+        List<String> whereFields;
+        searchObject.setMobileNumber(null);
+        searchObject.setName(null);
+        try {
+            whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
+        } finally {
+            searchObject.setMobileNumber(mobileNumbers);
+            searchObject.setName(name);
+        }
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString().trim();
 
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE ");
         }
+        if (mobileNumbers != null && !mobileNumbers.isEmpty()) {
+            query = query + "AND mobileNumberHash IN (:mobileNumberHash) ";
+            paramsMap.put("mobileNumberHash", piiHasher.hashAll(PiiHasher.MOBILE, mobileNumbers));
+        }
+        if (name != null) {
+            if (name.getGivenName() != null) {
+                query = query + "AND givenNameHash = :nameGivenNameHash ";
+                paramsMap.put("nameGivenNameHash", piiHasher.hash(PiiHasher.GIVEN_NAME, name.getGivenName()));
+            }
+        }
         if (searchObject.getIndividualName() != null) {
-            query = query + "AND givenname ILIKE :individualName ";
-            paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
-        }
-        if (searchObject.getGender() != null) {
-            query = query + "AND gender =:gender ";
-            paramsMap.put("gender", searchObject.getGender().name());
-        }
-        if (searchObject.getDateOfBirth() != null) {
-            query = query + "AND dateOfBirth =:dateOfBirth ";
-            paramsMap.put("dateOfBirth", searchObject.getDateOfBirth());
+            // Partial (ILIKE) name search is out of scope: names are encrypted, so this is an
+            // exact, case-insensitive match on the given name.
+            query = query + "AND givenNameHash = :individualNameHash ";
+            paramsMap.put("individualNameHash", piiHasher.hash(PiiHasher.GIVEN_NAME, searchObject.getIndividualName()));
         }
         if (searchObject.getSocialCategory() != null) {
             query = query + "AND additionaldetails->'fields' @> '[{\"key\": \"SOCIAL_CATEGORY\", \"value\":" + "\"" + searchObject.getSocialCategory() + "\"}]' ";
@@ -309,8 +367,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
 
         if (searchObject.getUsername() != null) {
-            query = query + "AND username in (:username) ";
-            paramsMap.put("username", searchObject.getUsername());
+            query = query + "AND usernameHash in (:usernameHash) ";
+            paramsMap.put("usernameHash", piiHasher.hashAll(PiiHasher.USERNAME, searchObject.getUsername()));
         }
 
         if (searchObject.getUserId() != null) {
@@ -371,8 +429,26 @@ public class IndividualRepository extends GenericRepository<Individual> {
         String identifierQuery = String.format("SELECT * FROM %s.individual_identifier", SCHEMA_REPLACE_STRING);
 
         identifierQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(identifierQuery, tenantId);
-        List<String> identifierWhereFields = GenericQueryBuilder.getFieldsWithCondition(identifier,
+        // identifierId is stored encrypted: match on identifierIdHash instead. A StoredIdentifier
+        // may carry the hash already (its identifierId is then cipher text).
+        String identifierIdHash = identifier instanceof StoredIdentifier
+                ? ((StoredIdentifier) identifier).getIdentifierIdHash() : null;
+        if (identifierIdHash == null && identifier.getIdentifierId() != null) {
+            identifierIdHash = piiHasher.hash(PiiHasher.IDENTIFIER_ID, identifier.getIdentifierId());
+        }
+        Identifier criteria = Identifier.builder().id(identifier.getId())
+                .clientReferenceId(identifier.getClientReferenceId())
+                .individualId(identifier.getIndividualId())
+                .individualClientReferenceId(identifier.getIndividualClientReferenceId())
+                .identifierType(identifier.getIdentifierType())
+                .isDeleted(identifier.getIsDeleted())
+                .build();
+        List<String> identifierWhereFields = GenericQueryBuilder.getFieldsWithCondition(criteria,
                 QueryFieldChecker.isNotNull, paramMap);
+        if (identifierIdHash != null) {
+            identifierWhereFields.add("identifierIdHash=:identifierIdHash");
+            paramMap.put("identifierIdHash", identifierIdHash);
+        }
         return GenericQueryBuilder.generateQuery(identifierQuery, identifierWhereFields).toString();
     }
 

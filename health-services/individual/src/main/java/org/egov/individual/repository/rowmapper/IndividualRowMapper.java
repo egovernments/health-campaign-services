@@ -14,6 +14,10 @@ import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.Name;
 import org.egov.common.models.individual.UserDetails;
+import org.egov.individual.service.IndividualPiiCryptoService;
+import org.egov.common.pii.CipherText;
+import org.egov.individual.web.models.StoredIndividual;
+import org.springframework.beans.BeanUtils;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -38,7 +42,14 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
                     .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
-            return Individual.builder().id(resultSet.getString("id"))
+            String gender = resultSet.getString("gender");
+            String bloodGroup = resultSet.getString("bloodGroup");
+            boolean genderIsCipher = CipherText.isCipher(gender);
+            boolean bloodGroupIsCipher = CipherText.isCipher(bloodGroup);
+            // dateOfBirth is a TEXT column: cipher text, or plain ISO text (yyyy-MM-dd) in rows not yet backfilled
+            String dob = resultSet.getString("dateOfBirth");
+            boolean dobIsCipher = CipherText.isCipher(dob);
+            Individual individual = Individual.builder().id(resultSet.getString("id"))
                     .individualId(resultSet.getString("individualid"))
                     .userId(resultSet.getString("userId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
@@ -46,10 +57,9 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .name(Name.builder().givenName(resultSet.getString("givenName"))
                             .familyName(resultSet.getString("familyName"))
                             .otherNames(resultSet.getString("otherNames")).build())
-                    .dateOfBirth(resultSet.getDate("dateOfBirth") != null ?
-                            resultSet.getDate("dateOfBirth"): null)
-                    .gender(Gender.fromValue(resultSet.getString("gender")))
-                    .bloodGroup(BloodGroup.fromValue(resultSet.getString("bloodGroup")))
+                    .dateOfBirth(dobIsCipher || dob == null ? null : parsePlainDob(dob, resultSet.getString("id")))
+                    .gender(genderIsCipher ? null : Gender.fromValue(gender))
+                    .bloodGroup(bloodGroupIsCipher ? null : BloodGroup.fromValue(bloodGroup))
                     .mobileNumber(resultSet.getString("mobileNumber"))
                     .altContactNumber(resultSet.getString("altContactNumber"))
                     .email(resultSet.getString("email"))
@@ -77,8 +87,26 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .userUuid(resultSet.getString("userUuid"))
                     .clientAuditDetails(clientAuditDetails)
                     .build();
+            // stored form: cipher of the non-text fields and the search hashes travel with the row
+            StoredIndividual stored = new StoredIndividual();
+            BeanUtils.copyProperties(individual, stored);
+            stored.setDateOfBirthCipher(dobIsCipher ? dob : null);
+            stored.setGenderCipher(genderIsCipher ? gender : null);
+            stored.setBloodGroupCipher(bloodGroupIsCipher ? bloodGroup : null);
+            stored.setMobileNumberHash(resultSet.getString("mobileNumberHash"));
+            stored.setGivenNameHash(resultSet.getString("givenNameHash"));
+            stored.setUsernameHash(resultSet.getString("usernameHash"));
+            return stored;
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Plain date text from a row written before the backfill: yyyy-MM-dd, or a timestamp text starting with it
+     * (what the old persister config writes into the TEXT column, e.g. "1983-04-04 00:00:00+05:30").
+     */
+    private static java.util.Date parsePlainDob(String text, String individualId) {
+        return IndividualPiiCryptoService.readDob(text, java.util.TimeZone.getDefault(), individualId);
     }
 }

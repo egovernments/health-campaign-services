@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.pii.BulkEnvelopeService;
 import org.egov.individual.service.IndividualService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,20 +25,38 @@ public class IndividualConsumer {
 
     private final ObjectMapper objectMapper;
 
+    private final BulkEnvelopeService bulkEnvelopeService;
+
     @Autowired
     public IndividualConsumer(IndividualService individualService,
-                              @Qualifier("objectMapper") ObjectMapper objectMapper) {
+                              @Qualifier("objectMapper") ObjectMapper objectMapper,
+                              BulkEnvelopeService bulkEnvelopeService) {
         this.individualService = individualService;
         this.objectMapper = objectMapper;
+        this.bulkEnvelopeService = bulkEnvelopeService;
+    }
+
+    /**
+     * Bulk messages parked while enc-service was down (ENCRYPTED or PLAIN, see payloadType).
+     * One message per poll: the replay may wait for enc-service, and a poll of many messages would
+     * then run past max.poll.interval.ms, so Kafka would hand the same messages out again.
+     */
+    @KafkaListener(topics = "${egov.bulk.dlq.topic}",  // the topic messages are parked to (mapped from individual.bulk.dlq.topic)
+            properties = "max.poll.records=1")
+    public void replayBulkDlq(Map<String, Object> consumerRecord) {
+        bulkEnvelopeService.replayDlq(consumerRecord);
     }
 
     @KafkaListener(topics = "${individual.consumer.bulk.create.topic}")
     public List<Individual> bulkCreate(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
-            return individualService.create(request, true);
+            IndividualBulkRequest request = bulkEnvelopeService.open(consumerRecord, IndividualBulkRequest.class);
+            return individualService.createFromQueue(request);
         } catch (Exception exception) {
+            if (bulkEnvelopeService.parkIfEncFailed(topic, consumerRecord, exception)) {
+                return Collections.emptyList();
+            }
             log.error("error in individual consumer bulk create", exception);
             return Collections.emptyList();
         }
@@ -47,9 +66,12 @@ public class IndividualConsumer {
     public List<Individual> bulkUpdate(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
-            return individualService.update(request, true);
+            IndividualBulkRequest request = bulkEnvelopeService.open(consumerRecord, IndividualBulkRequest.class);
+            return individualService.updateFromQueue(request);
         } catch (Exception exception) {
+            if (bulkEnvelopeService.parkIfEncFailed(topic, consumerRecord, exception)) {
+                return Collections.emptyList();
+            }
             log.error("error in individual consumer bulk update", exception);
             return Collections.emptyList();
         }
@@ -59,9 +81,12 @@ public class IndividualConsumer {
     public List<Individual> bulkDelete(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
-            return individualService.delete(request, true);
+            IndividualBulkRequest request = bulkEnvelopeService.open(consumerRecord, IndividualBulkRequest.class);
+            return individualService.deleteFromQueue(request);
         } catch (Exception exception) {
+            if (bulkEnvelopeService.parkIfEncFailed(topic, consumerRecord, exception)) {
+                return Collections.emptyList();
+            }
             log.error("error in individual consumer bulk delete", exception);
             return Collections.emptyList();
         }

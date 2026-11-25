@@ -15,6 +15,7 @@ import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
+import org.egov.common.pii.BulkEnvelopeService;
 import org.egov.individual.service.IndividualService;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.IndividualSearchRequest;
@@ -65,6 +66,9 @@ class IndividualApiControllerTest {
 
     @MockBean
     private IndividualProperties individualProperties;
+
+    @MockBean
+    private BulkEnvelopeService bulkEnvelopeService;
 
     @BeforeEach
     void setup() {
@@ -325,8 +329,9 @@ class IndividualApiControllerTest {
                         .content(objectMapper.writeValueAsString(individualBulkRequest)))
                 .andExpect(status().isAccepted())
                 .andReturn();
-        verify(producer, times(1))
-                .push(eq("individual-consumer-bulk-create-topic"), any(IndividualBulkRequest.class));
+        // bulk requests go to Kafka inside an encrypted envelope
+        verify(bulkEnvelopeService, times(1))
+                .publish(eq("individual-consumer-bulk-create-topic"), any(IndividualBulkRequest.class));
         verify(individualProperties, times(1)).getBulkSaveIndividualTopic();
     }
 
@@ -346,8 +351,9 @@ class IndividualApiControllerTest {
                         .content(objectMapper.writeValueAsString(individualBulkRequest)))
                 .andExpect(status().isAccepted())
                 .andReturn();
-        verify(producer, times(1))
-                .push(eq("individual-consumer-bulk-update-topic"), any(IndividualBulkRequest.class));
+        // bulk requests go to Kafka inside an encrypted envelope
+        verify(bulkEnvelopeService, times(1))
+                .publish(eq("individual-consumer-bulk-update-topic"), any(IndividualBulkRequest.class));
         verify(individualProperties, times(1)).getBulkUpdateIndividualTopic();
     }
 
@@ -367,8 +373,9 @@ class IndividualApiControllerTest {
                         .content(objectMapper.writeValueAsString(individualBulkRequest)))
                 .andExpect(status().isAccepted())
                 .andReturn();
-        verify(producer, times(1))
-                .push(eq("individual-consumer-bulk-delete-topic"), any(IndividualBulkRequest.class));
+        // bulk requests go to Kafka inside an encrypted envelope
+        verify(bulkEnvelopeService, times(1))
+                .publish(eq("individual-consumer-bulk-delete-topic"), any(IndividualBulkRequest.class));
         verify(individualProperties, times(1)).getBulkDeleteIndividualTopic();
     }
 }

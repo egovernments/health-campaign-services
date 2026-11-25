@@ -63,7 +63,8 @@ class IndividualBulkPerfLocalIT {
         lenient().when(redis.opsForHash()).thenReturn(hashOps);
 
         repository = new IndividualRepository(mock(Producer.class), npjt, redis,
-                mock(SelectQueryBuilder.class), new IndividualRowMapper());
+                mock(SelectQueryBuilder.class), new IndividualRowMapper(),
+                PiiTestSupport.hasher());
         ReflectionTestUtils.setField(repository, "multiStateInstanceUtil", util);
         ReflectionTestUtils.setField(repository, "timeToLive", "60");
 

@@ -68,8 +68,6 @@ public class IndividualSearchTestBuilder {
     public IndividualSearchTestBuilder byName() {
         this.builder.name(Name.builder()
                         .givenName("some-given-name")
-                        .familyName("some-family-name")
-                        .otherNames("some-other-name")
                 .build());
         return this;
     }

@@ -1,5 +1,7 @@
 package org.egov.individual.repository;
 
+import org.egov.common.pii.PiiHasher;
+
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
@@ -41,6 +43,7 @@ import static org.mockito.Mockito.*;
 class IndividualSearchFlowLocalIT {
 
     private static final String TENANT = "ITEST";
+    private static final PiiHasher HASHER = PiiTestSupport.hasher();
     private IndividualRepository repository;
     private JdbcTemplate jdbc;
     private final boolean enabled = "true".equals(System.getProperty("local.search.it"));
@@ -67,7 +70,8 @@ class IndividualSearchFlowLocalIT {
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOps);   // cache miss -> always hits DB
 
         repository = new IndividualRepository(mock(Producer.class), npjt, redisTemplate,
-                mock(SelectQueryBuilder.class), new IndividualRowMapper());
+                mock(SelectQueryBuilder.class), new IndividualRowMapper(),
+                PiiTestSupport.hasher());
         ReflectionTestUtils.setField(repository, "multiStateInstanceUtil", multiStateInstanceUtil);
         ReflectionTestUtils.setField(repository, "timeToLive", "60");
 
@@ -116,8 +120,10 @@ class IndividualSearchFlowLocalIT {
     }
 
     private void ind(String id, String given, String mobile) {
-        jdbc.update("INSERT INTO public.individual (id, tenantid, givenname, mobilenumber, isdeleted, createdtime) " +
-                "VALUES (?,?,?,?,false, 1000)", id, TENANT, given, mobile);
+        // search matches on the keyed-hash columns, so seed them as the service would
+        jdbc.update("INSERT INTO public.individual (id, tenantid, givenname, mobilenumber, givennamehash, mobilenumberhash, "
+                + "isdeleted, createdtime) VALUES (?,?,?,?,?,?,false, 1000)", id, TENANT, given, mobile,
+                HASHER.hash(PiiHasher.GIVEN_NAME, given), HASHER.hash(PiiHasher.MOBILE, mobile));
     }
     private void addr(String id, double lat, double lon) {
         jdbc.update("INSERT INTO public.address (id, tenantid, latitude, longitude, type) VALUES (?,?,?,?,?)",
@@ -128,8 +134,9 @@ class IndividualSearchFlowLocalIT {
                 "VALUES (?,?,?,false, 2000)", indId, addrId, type);
     }
     private void identifier(String id, String indId, String type, String value) {
-        jdbc.update("INSERT INTO public.individual_identifier (id, individualid, identifiertype, identifierid, isdeleted) " +
-                "VALUES (?,?,?,?,false)", id, indId, type, value);
+        jdbc.update("INSERT INTO public.individual_identifier (id, individualid, identifiertype, identifierid, "
+                + "identifieridhash, isdeleted) VALUES (?,?,?,?,?,false)", id, indId, type, value,
+                HASHER.hash(PiiHasher.IDENTIFIER_ID, value));
     }
     private void skill(String id, String indId) {
         jdbc.update("INSERT INTO public.individual_skill (id, individualid, type, level, experience, isdeleted) " +

@@ -1,7 +1,9 @@
 package org.egov.individual.web.controllers;
 
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
@@ -19,8 +21,11 @@ import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
+import org.egov.common.pii.BulkEnvelopeService;
 import org.egov.individual.service.IndividualService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -47,16 +52,20 @@ public class IndividualApiController {
 
     private final IndividualProperties individualProperties;
 
+    private final BulkEnvelopeService bulkEnvelopeService;
+
     @Autowired
     public IndividualApiController(IndividualService individualService,
                                    ObjectMapper objectMapper,
                                    HttpServletRequest servletRequest, Producer producer,
-                                   IndividualProperties individualProperties) {
+                                   IndividualProperties individualProperties,
+                                   BulkEnvelopeService bulkEnvelopeService) {
         this.individualService = individualService;
         this.objectMapper = objectMapper;
         this.servletRequest = servletRequest;
         this.producer = producer;
         this.individualProperties = individualProperties;
+        this.bulkEnvelopeService = bulkEnvelopeService;
     }
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
@@ -117,11 +126,38 @@ public class IndividualApiController {
             return ResponseEntity.status(HttpStatus.OK).body(body);
         }
 
-        // Existing async path — unchanged.
+        // Cache first, as before (the consumer caches the saved form after it; the other order could
+        // overwrite that). Async path: the request goes to Kafka inside an encrypted envelope.
         individualService.putInCache(request.getIndividuals());
-        producer.push(individualProperties.getBulkSaveIndividualTopic(), request);
+        ResponseEntity<?> unavailable = publishBulk(individualProperties.getBulkSaveIndividualTopic(), request);
+        if (unavailable != null) {
+            return unavailable;
+        }
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
+    }
+
+    /**
+     * Seals the bulk request into an encrypted envelope and pushes it. Returns null when it was
+     * queued (encrypted, or parked in the plain DLQ in ALLOW_PLAIN mode), or a 503 response when
+     * enc-service is down in ENCRYPTED_ONLY mode, so the client retries and nothing plain is written.
+     */
+    private ResponseEntity<?> publishBulk(String topic, IndividualBulkRequest request) {
+        try {
+            bulkEnvelopeService.publish(topic, request);
+            return null;
+        } catch (CustomException e) {
+            if (!BulkEnvelopeService.isEncUnavailable(e)) {
+                throw e;
+            }
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("ResponseInfo", ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), false));
+            body.put("Errors", List.of(Map.of("code", e.getCode(), "message",
+                    "Encryption service is unavailable; the request was not accepted. Please retry.")));
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(individualProperties.getEncCircuitOpenMs() / 1000))
+                    .body(body);
+        }
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
@@ -159,9 +195,12 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1BulkUpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<?> individualV1BulkUpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
-        producer.push(individualProperties.getBulkUpdateIndividualTopic(), request);
+        ResponseEntity<?> unavailable = publishBulk(individualProperties.getBulkUpdateIndividualTopic(), request);
+        if (unavailable != null) {
+            return unavailable;
+        }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -180,9 +219,12 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1BulkDeletePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<?> individualV1BulkDeletePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
-        producer.push(individualProperties.getBulkDeleteIndividualTopic(), request);
+        ResponseEntity<?> unavailable = publishBulk(individualProperties.getBulkDeleteIndividualTopic(), request);
+        if (unavailable != null) {
+            return unavailable;
+        }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

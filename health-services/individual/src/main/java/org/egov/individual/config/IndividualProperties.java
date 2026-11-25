@@ -96,6 +96,27 @@ public class IndividualProperties {
     @Value("${individual.beneficiary.id.length}")
     private Integer beneficiaryIdLength;
 
+    // ---- PII encryption at rest ----
+
+    /** enc-client SecurityPolicy model used to encrypt the PII values (attribute "value"). */
+    @Value("${individual.pii.encrypt.model:IndividualPiiEncrypt}")
+    private String piiEncryptModel;
+
+    /** enc-client SecurityPolicy model used to decrypt the PII values (one node per value). */
+    @Value("${individual.pii.decrypt.model:IndividualPiiDecrypt}")
+    private String piiDecryptModel;
+
+    /** additionalFields keys whose values hold health data and are stored encrypted. */
+    @Value("#{'${individual.pii.additional.fields.keys:weight,height,isPregnant}'.split(',')}")
+    private List<String> piiAdditionalFieldKeys;
+
+    // The bulk envelope, DLQ, enc-service timeout, circuit-breaker and hash-secret settings are read by
+    // org.egov.common.pii (health-services-common); application.properties maps the individual.* names into them.
+
+    /** Circuit open period, same value as the library's egov.enc.circuit.open.ms; the 503 answer sends it as Retry-After. */
+    @Value("${individual.enc.circuit.open.ms:30000}")
+    private Long encCircuitOpenMs;
+
 
 
 }

@@ -27,6 +27,7 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.BeneficiaryIdGenUtil;
+import org.egov.common.pii.EncCircuitBreaker;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
@@ -166,6 +167,21 @@ public class IndividualService {
      */
     public List<Individual> create(IndividualBulkRequest request, boolean isBulk, boolean generateDummyMobile,
                                    Map<Individual, ErrorDetails> errorDetailsMapOut) {
+        return create(request, isBulk, generateDummyMobile, errorDetailsMapOut, false);
+    }
+
+    /**
+     * Bulk create for the Kafka consumer. An encryption failure is thrown, not reported, so the consumer
+     * parks the original encrypted message for replay: the records are not lost and no plain copy goes
+     * to the error index. The result is not decrypted: the consumer does not use it, and a decrypt
+     * failure after the save would make the consumer park, and later save, the same records again.
+     */
+    public List<Individual> createFromQueue(IndividualBulkRequest request) {
+        return create(request, true, true, new HashMap<>(), true);
+    }
+
+    private List<Individual> create(IndividualBulkRequest request, boolean isBulk, boolean generateDummyMobile,
+                                    Map<Individual, ErrorDetails> errorDetailsMapOut, boolean fromQueue) {
 
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
@@ -177,9 +193,23 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
-                // integrate with user service create call
+                // Encrypt (and run the duplicate Aadhaar check) BEFORE the user service call: when enc-service
+                // fails, no user account exists yet, so a replay of the same message can create it.
+                List<Individual> storedCopies = individualEncryptionService
+                        .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
+                Map<Individual, Individual> storedBySource = new IdentityHashMap<>();
+                for (int i = 0; i < validIndividuals.size(); i++) {
+                    storedBySource.put(validIndividuals.get(i), storedCopies.get(i));
+                }
+                // integrate with user service create call: it drops the records it failed for
+                // and sets userId / userUuid on the others
                 validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap, generateDummyMobile);
-                //encrypt PII data
+                encryptedIndividualList = validIndividuals.stream().map(source -> {
+                    Individual stored = storedBySource.get(source);
+                    stored.setUserId(source.getUserId());
+                    stored.setUserUuid(source.getUserUuid());
+                    return stored;
+                }).collect(Collectors.toList());
 
                 // BenificiaryIds to Update
                 List<String> beneficiaryIds = validIndividuals.stream()
@@ -191,9 +221,7 @@ public class IndividualService {
                                 .stream())
                         .map(identifier -> String.valueOf(identifier.getIdentifierId()))
                         .toList();
-                if (!validIndividuals.isEmpty()) {
-                    encryptedIndividualList = individualEncryptionService
-                            .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
+                if (!encryptedIndividualList.isEmpty()) {
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
                     // update beneficiary ids in idgen
@@ -203,6 +231,9 @@ public class IndividualService {
                 }
             }
         } catch (CustomException exception) {
+            if (fromQueue && EncCircuitBreaker.isEncFailure(exception)) {
+                throw exception;
+            }
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
@@ -213,10 +244,42 @@ public class IndividualService {
         errorDetailsMapOut.putAll(errorDetailsMap);
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        if (fromQueue) {
+            return validIndividuals;
+        }
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
+        restorePasswords(decryptedIndividualList, request.getIndividuals());
         return decryptedIndividualList;
+    }
+
+    /**
+     * The stored form never carries userDetails.password, but the
+     * create/update responses always echoed it. Put it back from the request so the response is unchanged.
+     */
+    private static void restorePasswords(List<Individual> responseIndividuals, List<Individual> requestIndividuals) {
+        if (responseIndividuals == null || requestIndividuals == null) {
+            return;
+        }
+        Map<String, String> passwordByKey = new HashMap<>();
+        for (Individual sent : requestIndividuals) {
+            if (sent.getUserDetails() == null || sent.getUserDetails().getPassword() == null) {
+                continue;
+            }
+            if (sent.getClientReferenceId() != null) passwordByKey.put("c:" + sent.getClientReferenceId(), sent.getUserDetails().getPassword());
+            if (sent.getId() != null) passwordByKey.put("i:" + sent.getId(), sent.getUserDetails().getPassword());
+        }
+        if (passwordByKey.isEmpty()) {
+            return;
+        }
+        for (Individual out : responseIndividuals) {
+            if (out.getUserDetails() == null || out.getUserDetails().getPassword() != null) {
+                continue;
+            }
+            String password = passwordByKey.getOrDefault("c:" + out.getClientReferenceId(), passwordByKey.get("i:" + out.getId()));
+            out.getUserDetails().setPassword(password);
+        }
     }
 
     private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
@@ -251,6 +314,18 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
+        return update(request, isBulk, false);
+    }
+
+    /**
+     * Bulk update for the Kafka consumer: an encryption failure is thrown so the consumer parks the message
+     * (see {@link #createFromQueue}). The user service update that may already have run is safe to repeat.
+     */
+    public List<Individual> updateFromQueue(IndividualBulkRequest request) {
+        return update(request, true, true);
+    }
+
+    private List<Individual> update(IndividualBulkRequest request, boolean isBulk, boolean fromQueue) {
         String tenantId =  request.getRequestInfo().getUserInfo().getTenantId();
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
@@ -333,14 +408,21 @@ public class IndividualService {
                 }
             }
         } catch (Exception exception) {
+            if (fromQueue && EncCircuitBreaker.isEncFailure(exception)) {
+                throw (CustomException) exception;
+            }
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        if (fromQueue) {
+            return validIndividuals;
+        }
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
+        restorePasswords(decryptedIndividualList, request.getIndividuals());
         return decryptedIndividualList;
     }
 
@@ -397,25 +479,20 @@ public class IndividualService {
 
             return searchResponse;
         }
-        //encrypt search criteria
-
-        IndividualSearch encryptedIndividualSearch;
-        if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
-            encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
-        } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
-            encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
-        } else {
-            encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchEncrypt");
-        }
+        // PII search values are not encrypted any more: the repository matches them on the
+        // HMAC hash columns (cipher text changes when a key rotates, the hash does not).
         try {
-            searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
+            searchResponse = individualRepository.find(individualSearch, limit, offset, tenantId,
                     lastChangedSince, includeDeleted);
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                     .collect(Collectors.toList());
+        } catch (CustomException exception) {
+            if (SEARCH_FIELD_NOT_SUPPORTED.equals(exception.getCode())) {
+                throw exception; // the caller must see why the search was refused
+            }
+            log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
+            throw new CustomException("DATABASE_ERROR", exception.getMessage());
         } catch (Exception exception) {
             log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
@@ -456,6 +533,18 @@ public class IndividualService {
     }
 
     public List<Individual> delete(IndividualBulkRequest request, boolean isBulk) {
+        return delete(request, isBulk, false);
+    }
+
+    /**
+     * Bulk delete for the Kafka consumer: an encryption failure is thrown so the consumer parks the message
+     * (see {@link #createFromQueue}). The user service soft delete that may already have run is safe to repeat.
+     */
+    public List<Individual> deleteFromQueue(IndividualBulkRequest request) {
+        return delete(request, true, true);
+    }
+
+    private List<Individual> delete(IndividualBulkRequest request, boolean isBulk, boolean fromQueue) {
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForDelete, request,
                 isBulk);
@@ -465,12 +554,23 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
-                // integrate with user service delete call
+                // The indexer also reads the delete topic into the individual ES index, so the message must carry
+                // the stored (encrypted) form, never the plain request. The API response stays plain.
+                // Encrypt BEFORE the user service call: when enc-service fails, no user account is deactivated.
+                List<Individual> storedCopies = individualEncryptionService.toStoredForm(validIndividuals);
+                Map<Individual, Individual> storedBySource = new IdentityHashMap<>();
+                for (int i = 0; i < validIndividuals.size(); i++) {
+                    storedBySource.put(validIndividuals.get(i), storedCopies.get(i));
+                }
+                // integrate with user service delete call: it drops the records it failed for
                 validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.DELETE, errorDetailsMap);
-                individualRepository.save(validIndividuals,
+                individualRepository.save(validIndividuals.stream().map(storedBySource::get).collect(Collectors.toList()),
                         properties.getDeleteIndividualTopic());
             }
         } catch (Exception exception) {
+            if (fromQueue && EncCircuitBreaker.isEncFailure(exception)) {
+                throw (CustomException) exception;
+            }
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
@@ -480,9 +580,21 @@ public class IndividualService {
         return validIndividuals;
     }
 
+    /**
+     * Caches the stored form (PII encrypted, search hashes set, no password), never the plain request.
+     * Best effort: the bulk request is already on Kafka, and the consumer caches the stored form again
+     * after saving, so when enc-service cannot be reached here the cache is skipped, not the request.
+     */
     public void putInCache(List<Individual> individuals) {
-        log.info("putting {} individuals in cache", individuals.size());
-        individualRepository.putInCache(individuals);
+        List<Individual> stored;
+        try {
+            stored = individualEncryptionService.toStoredForm(individuals);
+        } catch (RuntimeException e) {
+            log.warn("{} individuals not cached: could not encrypt them ({})", individuals.size(), e.getMessage());
+            return;
+        }
+        log.info("putting {} individuals in cache", stored.size());
+        individualRepository.putInCache(stored);
         log.info("successfully put individuals in cache");
     }
 
@@ -519,9 +631,9 @@ public class IndividualService {
                     String code = "INDIVIDUAL_USER_SERVICE_" + apiOperation + "_ERROR";
                     String msg = String.format(
                             "User service %s call failed for individual [id=%s, userId=%s, userUuid=%s, "
-                                    + "clientReferenceId=%s, mobileNumber=%s]: exceptionClass=%s, exceptionMessage=%s",
+                                    + "clientReferenceId=%s]: exceptionClass=%s, exceptionMessage=%s",
                             apiOperation, individual.getId(), individual.getUserId(), individual.getUserUuid(),
-                            individual.getClientReferenceId(), individual.getMobileNumber(),
+                            individual.getClientReferenceId(),
                             exception.getClass().getSimpleName(),
                             exception.getMessage() != null ? exception.getMessage() : "(no message)");
                     recordUserServiceError(request, errorDetails, validIndividuals, individual, code, msg);
@@ -586,8 +698,7 @@ public class IndividualService {
             if (savedUser != null && savedUser.get("id") != null) {
                 individual.setUserId(String.valueOf(savedUser.get("id")));
                 individual.setUserUuid((String) savedUser.get("uuid"));
-                log.info("bulk-created user for username={} individualClientRef={}",
-                        expectedUsername, individual.getClientReferenceId());
+                log.info("bulk-created user for individualClientRef={}", individual.getClientReferenceId());
                 continue;
             }
 
@@ -595,7 +706,6 @@ public class IndividualService {
             Map<String, Object> downstreamErr = expectedUsername == null ? null : errorByUsername.get(expectedUsername);
             String code;
             String message;
-            String mobile = individual.getMobileNumber();
             String indId = individual.getId();
             String cliRef = individual.getClientReferenceId();
             if (downstreamErr != null && downstreamErr.get("code") != null) {
@@ -603,20 +713,19 @@ public class IndividualService {
                 // and add Individual-level context so callers can trace.
                 code = "INDIVIDUAL_BULK_CREATE_" + downstreamErr.get("code");
                 message = String.format(
-                        "User creation was rejected by egov-user for username='%s' (individualClientRef=%s, mobileNumber=%s). "
+                        "User creation was rejected by egov-user (individualClientRef=%s). "
                                 + "Downstream code=%s. Downstream message: %s",
-                        expectedUsername, cliRef, mobile,
-                        downstreamErr.get("code"), downstreamErr.get("message"));
+                        cliRef, downstreamErr.get("code"), downstreamErr.get("message"));
             } else {
                 // Fallback — no per-user error came back but the id is missing
                 code = "INDIVIDUAL_BULK_CREATE_USER_NOT_RETURNED";
                 message = String.format(
-                        "egov-user did not return an id for username='%s' (individualClientRef=%s, mobileNumber=%s, "
+                        "egov-user did not return an id (individualClientRef=%s, "
                                 + "individualId=%s) and no matching error entry was present in the response. "
                                 + "Likely causes: username collision without dedup metadata, or downstream INSERT rollback.",
-                        expectedUsername, cliRef, mobile, indId);
+                        cliRef, indId);
             }
-            log.warn("bulk create failed for username={} individualClientRef={} code={}", expectedUsername, cliRef, code);
+            log.warn("bulk create failed for individualClientRef={} code={}", cliRef, code);
             recordUserServiceError(request, errorDetails, validIndividuals, individual, code, message);
         }
     }

@@ -5,12 +5,14 @@ import java.sql.SQLException;
 
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.individual.Identifier;
+import org.egov.individual.web.models.StoredIdentifier;
+import org.springframework.beans.BeanUtils;
 import org.springframework.jdbc.core.RowMapper;
 
 public class IdentifierRowMapper implements RowMapper<Identifier> {
     @Override
     public Identifier mapRow(ResultSet resultSet, int i) throws SQLException {
-        return Identifier.builder()
+        Identifier identifier = Identifier.builder()
                 .id(resultSet.getString("id"))
                 .individualId(resultSet.getString("individualId"))
                 .individualClientReferenceId(resultSet.getString("individualClientReferenceId"))
@@ -23,5 +25,9 @@ public class IdentifierRowMapper implements RowMapper<Identifier> {
                         .lastModifiedTime(resultSet.getLong("lastModifiedTime")).build())
                 .isDeleted(resultSet.getBoolean("isDeleted"))
                 .build();
+        StoredIdentifier stored = new StoredIdentifier();
+        BeanUtils.copyProperties(identifier, stored);
+        stored.setIdentifierIdHash(resultSet.getString("identifierIdHash"));
+        return stored;
     }
 }

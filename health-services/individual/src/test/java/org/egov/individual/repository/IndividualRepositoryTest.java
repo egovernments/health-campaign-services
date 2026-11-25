@@ -13,6 +13,9 @@ import org.egov.individual.helper.IndividualSearchTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
+import org.egov.individual.service.IndividualPiiCryptoService;
+import org.egov.common.pii.PiiHasher;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -63,6 +67,12 @@ class IndividualRepositoryTest {
 
     @Mock
     private HashOperations hashOperations;
+
+    @Mock
+    private PiiHasher piiHasher;
+
+    @Mock
+    private IndividualPiiCryptoService piiCryptoService;
 
     @BeforeEach
     void setUp() {
@@ -130,15 +140,32 @@ class IndividualRepositoryTest {
     }
 
     @Test
+    @DisplayName("search by family name, other names, date of birth or gender is rejected, not ignored")
+    void shouldRejectSearchByFieldsWithoutHash() {
+        IndividualSearch[] searches = {
+                IndividualSearchTestBuilder.builder().byClientReferenceId().byGender().build(),
+                IndividualSearchTestBuilder.builder().byClientReferenceId().byDateOfBirth().build(),
+                IndividualSearch.builder().name(org.egov.common.models.individual.Name.builder()
+                        .familyName("some-family-name").build()).build(),
+                IndividualSearch.builder().name(org.egov.common.models.individual.Name.builder()
+                        .otherNames("some-other-name").build()).build(),
+        };
+        for (IndividualSearch search : searches) {
+            CustomException e = assertThrows(CustomException.class,
+                    () -> individualRepository.find(search, 2, 0, "default", null, true));
+            assertEquals("INDIVIDUAL_SEARCH_FIELD_NOT_SUPPORTED", e.getCode());
+        }
+        verify(namedParameterJdbcTemplate, never()).query(nullable(String.class), anyMap(), any(IndividualRowMapper.class));
+    }
+
+    @Test
     @DisplayName("find by other params (identifier==null): bulk-enriches in 3 set-based queries")
     void shouldFindOtherParamsFromDbAndReturnAllTheDependentEntitiesAsWellIfPresent() throws QueryBuilderException, InvalidTenantIdException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byId()
                 .byClientReferenceId()
                 .byUserUUID()
-                .byGender()
                 .byName()
-                .byDateOfBirth()
                 .byBoundaryCode()
                 .build();
 
@@ -209,9 +236,7 @@ class IndividualRepositoryTest {
                 .byId()
                 .byClientReferenceId()
                 .byUserUUID()
-                .byGender()
                 .byName()
-                .byDateOfBirth()
                 .byBoundaryCode()
                 .byIdentifier()
                 .build();
