@@ -196,6 +196,10 @@ def validate_table_mapping(
 # Number of events used to validate source columns.
 SOURCE_KEY_SAMPLE_SIZE = 100
 
+# Integer epoch timestamps at or above this are microseconds, below it
+# milliseconds (see coerce_value).
+MICROSECOND_EPOCH_THRESHOLD = 10**14
+
 
 def validate_source_keys(
     table_config: dict,
@@ -210,11 +214,14 @@ def validate_source_keys(
             "name": "name",
         }
 
-    Missing source columns fail the task.
+    Missing source columns fail the task, except those listed in the table's
+    optional_source_columns (present in only some tenant schemas).
     Unmapped source columns are logged as warnings.
     """
 
-    source_columns = set(table_config["columns"])
+    source_columns = set(table_config["columns"]) - set(
+        table_config.get("optional_source_columns", [])
+    )
 
     seen_keys: set[str] = set()
     payloads = 0
@@ -250,7 +257,7 @@ def validate_source_keys(
 
     # Not a failure -- a source column simply may not be wanted in Bronze. But
     # it is how schema drift becomes visible instead of silently ignored.
-    unmapped = sorted(seen_keys - source_columns)
+    unmapped = sorted(seen_keys - set(table_config["columns"]))
 
     if unmapped:
         logger.warning(
@@ -659,8 +666,14 @@ def coerce_value(
             #
             # timezone.utc rather than datetime.UTC -- identical object, but
             # the alias only exists on Python 3.11+.
+            #
+            # Postgres `timestamp` columns (e.g. public.message createddate)
+            # arrive as MICROseconds (Debezium MicroTimestamp, 16 digits).
+            # Millisecond epochs stay below 10**14 until the year 5138, so
+            # anything at or above it is microseconds.
+            divisor = 1_000_000 if abs(value) >= MICROSECOND_EPOCH_THRESHOLD else 1000
             return datetime.fromtimestamp(
-                value / 1000,
+                value / divisor,
                 tz=timezone.utc,
             )
 
