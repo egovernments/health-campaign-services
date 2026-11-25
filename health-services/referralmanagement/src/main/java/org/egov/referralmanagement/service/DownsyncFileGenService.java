@@ -9,6 +9,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.household.Address;
+import org.egov.common.models.household.Household;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
@@ -459,7 +461,7 @@ public class DownsyncFileGenService {
         jobRepository.updateFileStarted(tid, rowId, "HH_MEMBERS", System.currentTimeMillis());
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip -> {
-                long n = streamQuery(gzip, resolveSql(HH_QUERY, tid), localityParams(c), "HOUSEHOLD");
+                long n = streamHouseholdQuery(gzip, resolveSql(HH_QUERY, tid), localityParams(c));
                 return n + streamQuery(gzip, resolveSql(HH_MEMBER_QUERY, tid), localityParams(c), "HOUSEHOLD_MEMBER");
             });
             jobRepository.updateFileCompleted(tid, rowId, "HH_MEMBERS", "SUCCESS",
@@ -796,6 +798,201 @@ public class DownsyncFileGenService {
         wClientAudit(gen, rs);
     }
 
+    // ── Household decrypt-and-stream (buffer per cursor page) ────────────────
+
+    /** Columns of household_address_mv that the HOUSEHOLD rows of the file are written from. */
+    private static final List<String> HH_COLS = List.of(
+            "id", "clientReferenceId", "tenantId", "numberOfMembers", "householdType", "rowVersion", "isDeleted",
+            "additionalDetails",
+            "createdBy", "createdTime", "lastModifiedBy", "lastModifiedTime",
+            "clientCreatedBy", "clientCreatedTime", "clientLastModifiedBy", "clientLastModifiedTime",
+            "aid", "aclientreferenceid", "atenantid", "doorNo", "latitude", "longitude", "locationAccuracy", "type",
+            "addressLine1", "addressLine2", "landmark", "city", "pinCode", "buildingName", "street", "localityCode"
+    );
+    /** Address text columns that the household service stores as cipher text (latitude/longitude stay plain). */
+    private static final List<String> HH_ADDRESS_CIPHER_COLS = List.of(
+            "doorNo", "addressLine1", "addressLine2", "landmark", "city", "pinCode", "buildingName", "street");
+
+    private long streamHouseholdQuery(GZIPOutputStream gzip, String namedSql, Map<String, Object> params) {
+        ParsedSql parsed = NamedParameterUtils.parseSqlStatement(namedSql);
+        SqlParameterSource paramSource = new MapSqlParameterSource(params);
+        String positionalSql = NamedParameterUtils.substituteNamedParameters(parsed, paramSource);
+        Object[] positionalParams = NamedParameterUtils.buildValueArray(parsed, paramSource, null);
+
+        long[] count = {0};
+        readOnlyTx.execute(status -> {
+            namedJdbcTemplate.getJdbcTemplate().query(
+                con -> {
+                    PreparedStatement ps = con.prepareStatement(positionalSql,
+                            ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    ps.setFetchSize(CURSOR_FETCH_SIZE);
+                    for (int i = 0; i < positionalParams.length; i++)
+                        ps.setObject(i + 1, positionalParams[i]);
+                    return ps;
+                },
+                (ResultSet rs) -> {
+                    try {
+                        JsonGenerator gen = objectMapper.getFactory().createGenerator(gzip);
+                        gen.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+                        try {
+                            List<Map<String, Object>> buffer = new ArrayList<>(CURSOR_FETCH_SIZE);
+                            while (rs.next()) {
+                                buffer.add(readHouseholdRow(rs));
+                                if (buffer.size() == CURSOR_FETCH_SIZE) {
+                                    decryptHouseholdBatch(buffer);
+                                    writeHouseholdBuffer(gen, buffer);
+                                    count[0] += buffer.size();
+                                    buffer.clear();
+                                }
+                            }
+                            if (!buffer.isEmpty()) {
+                                decryptHouseholdBatch(buffer);
+                                writeHouseholdBuffer(gen, buffer);
+                                count[0] += buffer.size();
+                            }
+                        } finally {
+                            gen.flush();
+                            gen.close();
+                        }
+                    } catch (IOException | SQLException e) {
+                        throw new CustomException("HOUSEHOLD_STREAM_ERROR",
+                                "Failed to buffer or write HOUSEHOLD rows during NDJSON generation. Cause: " + e.getMessage());
+                    }
+                    return null;
+                }
+            );
+            return null;
+        });
+        return count[0];
+    }
+
+    private Map<String, Object> readHouseholdRow(ResultSet rs) throws SQLException {
+        Map<String, Object> row = new LinkedHashMap<>(HH_COLS.size() * 2);
+        for (String col : HH_COLS)
+            row.put(col, rs.getObject(col));
+        return row;
+    }
+
+    /**
+     * Decrypts the address text values of one page of household rows with ONE enc-service call, so the downsync
+     * file carries the same plain values as before encryption at rest. Only real cipher text is sent; rows not
+     * yet backfilled (plain values) pass through unchanged.
+     */
+    private void decryptHouseholdBatch(List<Map<String, Object>> batch) {
+        ArrayNode payload = objectMapper.createArrayNode();
+        List<java.util.function.Consumer<String>> setters = new ArrayList<>();
+        for (Map<String, Object> row : batch) {
+            for (String col : HH_ADDRESS_CIPHER_COLS) {
+                collectCipher(row.get(col) instanceof String text ? text : null, plain -> row.put(col, plain),
+                        payload, setters);
+            }
+        }
+        if (payload.isEmpty()) return;
+        decryptCiphers(payload, setters, batch.size(), "household");
+    }
+
+    /**
+     * Same decrypt for the households of the matview search (DownsyncService), which the row mapper builds from
+     * the same household_address_mv rows. One enc-service call for the whole page; plain values pass through.
+     */
+    public void decryptHouseholdAddresses(List<Household> households) {
+        if (households == null || households.isEmpty()) return;
+        ArrayNode payload = objectMapper.createArrayNode();
+        List<java.util.function.Consumer<String>> setters = new ArrayList<>();
+        for (Household household : households) {
+            Address a = household.getAddress();
+            if (a == null) continue;
+            collectCipher(a.getDoorNo(), a::setDoorNo, payload, setters);
+            collectCipher(a.getAddressLine1(), a::setAddressLine1, payload, setters);
+            collectCipher(a.getAddressLine2(), a::setAddressLine2, payload, setters);
+            collectCipher(a.getLandmark(), a::setLandmark, payload, setters);
+            collectCipher(a.getCity(), a::setCity, payload, setters);
+            collectCipher(a.getPincode(), a::setPincode, payload, setters);
+            collectCipher(a.getBuildingName(), a::setBuildingName, payload, setters);
+            collectCipher(a.getStreet(), a::setStreet, payload, setters);
+        }
+        if (payload.isEmpty()) return;
+        decryptCiphers(payload, setters, households.size(), "household");
+    }
+
+    private void collectCipher(String value, java.util.function.Consumer<String> setter, ArrayNode payload,
+                               List<java.util.function.Consumer<String>> setters) {
+        if (isCipherText(value)) {
+            payload.add(value);
+            setters.add(setter);
+        }
+    }
+
+    private void writeHouseholdBuffer(JsonGenerator gen, List<Map<String, Object>> buffer) throws IOException {
+        for (Map<String, Object> row : buffer) {
+            gen.writeStartObject();
+            gen.writeStringField("_t", "HOUSEHOLD");
+            writeHouseholdFromMap(gen, row);
+            gen.writeEndObject();
+            gen.writeRaw('\n');
+        }
+    }
+
+    /** Same output as {@link #writeHousehold} (which reads a ResultSet), for a buffered and decrypted row. */
+    private void writeHouseholdFromMap(JsonGenerator gen, Map<String, Object> row) throws IOException {
+        wsm(gen, "id",              row, "id");
+        wsm(gen, "clientReferenceId", row, "clientReferenceId");
+        wsm(gen, "tenantId",        row, "tenantId");
+        wim(gen, "memberCount",     row, "numberOfMembers");
+        wsm(gen, "householdType",   row, "householdType");
+        wim(gen, "rowVersion",      row, "rowVersion");
+        wbm(gen, "isDeleted",       row, "isDeleted");
+        wjsonm(gen, "additionalFields", row, "additionalDetails");
+
+        gen.writeFieldName("auditDetails");
+        gen.writeStartObject();
+        wsm(gen, "createdBy",        row, "createdBy");
+        wlm(gen, "createdTime",      row, "createdTime");
+        wsm(gen, "lastModifiedBy",   row, "lastModifiedBy");
+        wlm(gen, "lastModifiedTime", row, "lastModifiedTime");
+        gen.writeEndObject();
+
+        gen.writeFieldName("clientAuditDetails");
+        gen.writeStartObject();
+        wsm(gen, "createdBy",        row, "clientCreatedBy");
+        wlm(gen, "createdTime",      row, "clientCreatedTime");
+        wsm(gen, "lastModifiedBy",   row, "clientLastModifiedBy");
+        wlm(gen, "lastModifiedTime", row, "clientLastModifiedTime");
+        gen.writeEndObject();
+
+        if (row.get("aid") == null) {
+            gen.writeNullField("address");
+        } else {
+            gen.writeFieldName("address");
+            gen.writeStartObject();
+            wsm(gen, "id",               row, "aid");
+            wsm(gen, "clientReferenceId", row, "aclientreferenceid");
+            wsm(gen, "tenantId",         row, "atenantid");
+            wsm(gen, "doorNo",           row, "doorNo");
+            wdm(gen, "latitude",         row, "latitude");
+            wdm(gen, "longitude",        row, "longitude");
+            wdm(gen, "locationAccuracy", row, "locationAccuracy");
+            wsm(gen, "type",             row, "type");
+            wsm(gen, "addressLine1",     row, "addressLine1");
+            wsm(gen, "addressLine2",     row, "addressLine2");
+            wsm(gen, "landmark",         row, "landmark");
+            wsm(gen, "city",             row, "city");
+            wsm(gen, "pincode",          row, "pinCode");
+            wsm(gen, "buildingName",     row, "buildingName");
+            wsm(gen, "street",           row, "street");
+            Object locality = row.get("localityCode");
+            if (locality == null) {
+                gen.writeNullField("locality");
+            } else {
+                gen.writeFieldName("locality");
+                gen.writeStartObject();
+                gen.writeStringField("code", (String) locality);
+                gen.writeEndObject();
+            }
+            gen.writeEndObject();
+        }
+    }
+
     // ── Individual decrypt-and-stream (buffer per cursor page) ───────────────
 
     private long streamIndividualQuery(GZIPOutputStream gzip, String namedSql, Map<String, Object> params) {
@@ -858,27 +1055,53 @@ public class DownsyncFileGenService {
         return row;
     }
 
+    /** Individual columns that the individual service stores as cipher text. */
+    private static final List<String> IND_CIPHER_COLS = List.of(
+            "givenName", "familyName", "otherNames", "dateOfBirth", "gender", "bloodGroup",
+            "mobileNumber", "altContactNumber", "email", "fatherName", "husbandName");
+    /** Text fields of an individual's address that are stored as cipher text. */
+    private static final List<String> ADDRESS_CIPHER_FIELDS = List.of(
+            "doorNo", "addressLine1", "addressLine2", "landmark", "city", "pincode", "buildingName", "street");
+
+    /**
+     * Decrypts every encrypted value of one page of individual rows with ONE enc-service call, so the
+     * downsync file carries the same plain values as before encryption at rest.
+     * Only real cipher text is sent: enc-service rejects any plain value it is given.
+     * Rows not yet backfilled (plain values) pass through unchanged.
+     */
     private void decryptIndividualBatch(List<Map<String, Object>> batch) {
-        List<Integer> targets = new ArrayList<>();
         ArrayNode payload = objectMapper.createArrayNode();
+        List<java.util.function.Consumer<String>> setters = new ArrayList<>();
+        List<Runnable> afterDecrypt = new ArrayList<>();
 
-        for (int i = 0; i < batch.size(); i++) {
-            Map<String, Object> row = batch.get(i);
-            String mobile = (String) row.get("mobileNumber");
-            JsonNode identifiers = parseIdentifiersJson(row.get("identifiers_json"));
-            boolean mobileEnc = isCipherText(mobile);
-            boolean identEnc  = hasEncryptedIdentifier(identifiers);
-            if (!mobileEnc && !identEnc) continue;
-
-            ObjectNode node = objectMapper.createObjectNode();
-            if (mobileEnc) node.put("mobileNumber", mobile);
-            if (identEnc)  node.set("identifiers", identifiers);
-            payload.add(node);
-            targets.add(i);
+        for (Map<String, Object> row : batch) {
+            for (String col : IND_CIPHER_COLS) {
+                Object v = row.get(col);
+                if (v instanceof String text && isCipherText(text)) {
+                    payload.add(text);
+                    setters.add(plain -> row.put(col, plain));
+                }
+            }
+            collectJsonCiphers(row, "additionalDetails", payload, setters, afterDecrypt,
+                    node -> node.path("fields"), "value");
+            collectJsonCiphers(row, "identifiers_json", payload, setters, afterDecrypt,
+                    node -> node, "identifierId");
+            collectJsonCiphers(row, "addresses_json", payload, setters, afterDecrypt,
+                    node -> node, ADDRESS_CIPHER_FIELDS.toArray(new String[0]));
         }
 
-        if (targets.isEmpty()) return;
+        if (payload.isEmpty()) return;
 
+        decryptCiphers(payload, setters, batch.size(), "individual");
+        afterDecrypt.forEach(Runnable::run);
+    }
+
+    /**
+     * Sends the collected cipher values to enc-service in ONE call and hands every plain value to its setter
+     * (same order). Used for individuals and households.
+     */
+    private void decryptCiphers(ArrayNode payload, List<java.util.function.Consumer<String>> setters,
+                                int entityCount, String entity) {
         String decryptUrl = config.getEncHost() + config.getEncDecryptEndpoint();
         JsonNode decrypted;
         try {
@@ -886,39 +1109,73 @@ public class DownsyncFileGenService {
         } catch (RestClientException e) {
             throw new CustomException("ENC_SERVICE_DECRYPT_FAILED",
                     "HTTP call to enc-service decrypt endpoint '" + decryptUrl + "' failed for a batch of "
-                    + targets.size() + " individual(s). Verify egov.enc.host and egov.enc.decrypt.endpoint config. Cause: " + e.getMessage());
+                    + payload.size() + " value(s) from " + entityCount + " " + entity + "(s). "
+                    + "Verify egov.enc.host and egov.enc.decrypt.endpoint config. Cause: " + e.getClass().getSimpleName());
         }
 
         if (decrypted == null || !decrypted.isArray()) {
             throw new CustomException("ENC_SERVICE_INVALID_RESPONSE",
                     "Enc-service decrypt endpoint '" + decryptUrl + "' returned a null or non-array response "
-                    + "for a batch of " + targets.size() + " individual(s). Expected a JSON array of the same size.");
+                    + "for a batch of " + payload.size() + " value(s). Expected a JSON array of the same size.");
         }
 
-        if (decrypted.size() != targets.size()) {
+        if (decrypted.size() != payload.size()) {
             throw new CustomException("ENC_SERVICE_RESPONSE_SIZE_MISMATCH",
                     "Enc-service decrypt endpoint returned " + decrypted.size() + " element(s) but "
-                    + targets.size() + " were sent. Cannot safely map decrypted values back to their rows.");
+                    + payload.size() + " were sent. Cannot safely map decrypted values back to their rows.");
         }
 
-        for (int j = 0; j < targets.size(); j++) {
-            Map<String, Object> row = batch.get(targets.get(j));
-            JsonNode dec = decrypted.get(j);
-            if (dec.has("mobileNumber"))
-                row.put("mobileNumber", dec.get("mobileNumber").asText(null));
-            if (dec.has("identifiers"))
-                row.put("identifiers_json", dec.get("identifiers").toString());
+        for (int j = 0; j < setters.size(); j++) {
+            JsonNode value = decrypted.get(j);
+            setters.get(j).accept(value == null || value.isNull() ? null : value.asText());
         }
     }
 
-    private static boolean isCipherText(String text) {
-        // EGOV cipher format: <UUID>|<base64>  — UUID is exactly 36 chars with dashes at [8,13,18,23]
-        if (text == null || text.length() < 38) return false;
-        if (text.charAt(8) != '-' || text.charAt(13) != '-'
-                || text.charAt(18) != '-' || text.charAt(23) != '-'
-                || text.charAt(36) != '|') return false;
-        String base64 = text.substring(37);
-        return !base64.isEmpty() && (base64.length() % 4 == 0 || base64.endsWith("="));
+    /**
+     * Finds cipher values inside a JSON column (array of objects reached through {@code arrayOf}) and
+     * queues them for decryption. After decryption the column is replaced by the patched JSON text.
+     */
+    private void collectJsonCiphers(Map<String, Object> row, String col, ArrayNode payload,
+                                    List<java.util.function.Consumer<String>> setters, List<Runnable> afterDecrypt,
+                                    java.util.function.Function<JsonNode, JsonNode> arrayOf, String... fields) {
+        JsonNode root = parseIdentifiersJson(row.get(col));
+        if (root == null) return;
+        JsonNode array = arrayOf.apply(root);
+        if (array == null || !array.isArray()) return;
+        boolean found = false;
+        for (JsonNode element : array) {
+            if (!(element instanceof ObjectNode obj)) continue;
+            for (String field : fields) {
+                JsonNode v = obj.get(field);
+                if (v != null && v.isTextual() && isCipherText(v.asText())) {
+                    payload.add(v.asText());
+                    setters.add(plain -> obj.put(field, plain));
+                    found = true;
+                }
+            }
+        }
+        if (found) {
+            afterDecrypt.add(() -> row.put(col, root.toString()));
+        }
+    }
+
+    private static final java.util.regex.Pattern CIPHER_SHAPE =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9-]{1,64}\\|[A-Za-z0-9+/]+={0,2}$");
+
+    /**
+     * enc-service cipher text is {@code <keyId>|<base64>}; the key id is numeric on current enc-service
+     * (it was a UUID on older versions). AES-GCM adds a 16-byte tag, so a real cipher decodes to at least
+     * 16 bytes. Same rule as CipherText in health-services-common.
+     */
+    static boolean isCipherText(String text) {
+        if (text == null || !CIPHER_SHAPE.matcher(text).matches()) return false;
+        String base64 = text.substring(text.indexOf('|') + 1);
+        if (base64.length() % 4 != 0) return false;
+        try {
+            return java.util.Base64.getDecoder().decode(base64).length >= 16;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private JsonNode parseIdentifiersJson(Object pgObj) {
@@ -934,13 +1191,42 @@ public class DownsyncFileGenService {
         }
     }
 
-    private boolean hasEncryptedIdentifier(JsonNode identifiers) {
-        if (identifiers == null || !identifiers.isArray()) return false;
-        for (JsonNode id : identifiers) {
-            JsonNode v = id.get("identifierId");
-            if (v != null && isCipherText(v.asText(null))) return true;
+    /** yyyy-MM-dd at the start of the text; the year may have more than 4 digits (the database writes 10000-01-01). */
+    private static final java.util.regex.Pattern DOB_TEXT = java.util.regex.Pattern.compile("^(\\d{4,})-(\\d{2})-(\\d{2})");
+
+    /**
+     * dateOfBirth arrives as java.sql.Date (column still a date) or as text (TEXT column: plain from before the
+     * backfill, or decrypted above): yyyy-MM-dd, or a timestamp text that starts with it (what an old persister
+     * config writes into the text column), read the same way as the individual service. Output format is unchanged
+     * (dd/MM/yyyy).
+     */
+    static java.time.LocalDate toLocalDate(Object dob) {
+        if (dob instanceof java.sql.Date d) return d.toLocalDate();
+        String text = dob.toString().trim();
+        if (isCipherText(text)) {
+            throw new CustomException("INDIVIDUAL_DOB_NOT_DECRYPTED", "dateOfBirth is still cipher text after decryption");
         }
-        return false;
+        java.util.regex.Matcher m = DOB_TEXT.matcher(text);
+        try {
+            if (m.find()) {
+                return java.time.LocalDate.of(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)),
+                        Integer.parseInt(m.group(3)));
+            }
+        } catch (java.time.DateTimeException | NumberFormatException e) {
+            // falls through to the error below
+        }
+        throw new CustomException("INDIVIDUAL_DOB_INVALID", "dateOfBirth is not a yyyy-MM-dd date");
+    }
+
+    /** A date of birth that cannot be read is written empty with a warning (never the value), not a failed job. */
+    static java.time.LocalDate readDob(Object dob, Object individualId) {
+        try {
+            return toLocalDate(dob);
+        } catch (CustomException e) {
+            if (!"INDIVIDUAL_DOB_INVALID".equals(e.getCode())) throw e;
+            log.warn("dateOfBirth of individual {} is not a yyyy-MM-dd date; written empty", individualId);
+            return null;
+        }
     }
 
     private void writeIndividualBuffer(JsonGenerator gen, List<Map<String, Object>> buffer)
@@ -969,9 +1255,9 @@ public class DownsyncFileGenService {
         wsm(gen, "otherNames", row, "otherNames");
         gen.writeEndObject();
 
-        Object dob = row.get("dateOfBirth");
+        java.time.LocalDate dob = row.get("dateOfBirth") == null ? null : readDob(row.get("dateOfBirth"), row.get("id"));
         if (dob == null) gen.writeNullField("dateOfBirth");
-        else gen.writeStringField("dateOfBirth", ((java.sql.Date) dob).toLocalDate().format(DOB_FMT));
+        else gen.writeStringField("dateOfBirth", dob.format(DOB_FMT));
 
         wsm(gen, "gender",             row, "gender");
         wsm(gen, "bloodGroup",         row, "bloodGroup");
@@ -1036,6 +1322,13 @@ public class DownsyncFileGenService {
         Object v = row.get(col);
         if (v == null) gen.writeNullField(field);
         else gen.writeBooleanField(field, (Boolean) v);
+    }
+
+    private void wdm(JsonGenerator gen, String field, Map<String, Object> row, String col)
+            throws IOException {
+        Object v = row.get(col);
+        if (v == null) gen.writeNullField(field);
+        else gen.writeNumberField(field, ((Number) v).doubleValue());
     }
 
     private void wjsonm(JsonGenerator gen, String field, Map<String, Object> row, String col)

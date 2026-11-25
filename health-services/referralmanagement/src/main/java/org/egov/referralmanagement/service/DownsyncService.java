@@ -85,6 +85,8 @@ public class DownsyncService {
 
     private HouseholdRepository householdRepository;
 
+    private DownsyncFileGenService downsyncFileGenService;
+
     @Autowired
     public DownsyncService( ServiceRequestClient serviceRequestClient,
                             ReferralManagementConfiguration referralManagementConfiguration,
@@ -94,7 +96,8 @@ public class DownsyncService {
                             HFReferralService hfReferralService,
                             MasterDataService masterDataService,
                             MultiStateInstanceUtil multiStateInstanceUtil,
-                            HouseholdRepository householdRepository) {
+                            HouseholdRepository householdRepository,
+                            DownsyncFileGenService downsyncFileGenService) {
 
         this.restClient = serviceRequestClient;
         this.configs = referralManagementConfiguration;
@@ -105,6 +108,7 @@ public class DownsyncService {
         this.masterDataService = masterDataService;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
         this.householdRepository = householdRepository;
+        this.downsyncFileGenService = downsyncFileGenService;
     }
 
     /**
@@ -202,6 +206,8 @@ public class DownsyncService {
         if (configs.isEnableMatviewSearch()) {
             Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), criteria.getTenantId());
             List<Household> households = res.getY();
+            // the matview holds the stored (encrypted) address values; the downsync answers plain values
+            downsyncFileGenService.decryptHouseholdAddresses(households);
             downsync.getDownsyncCriteria().setTotalCount(res.getX());
             downsync.setHouseholds(households);
             return households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
