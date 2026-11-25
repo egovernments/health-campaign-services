@@ -33,6 +33,12 @@ Optional:
                        are expected here and both carry a row image -- a null
                        one is silent data loss. Set True only to deliberately
                        accept that loss and let the table proceed.
+
+    optional_source_columns
+                       Default []. Source keys left out of the "must appear in
+                       the sampled events" check, for columns that only some
+                       tenant schemas have. They are still loaded where
+                       present; events without them load ''/0 as usual.
 """
 
 
@@ -477,6 +483,8 @@ RAW_EVENT_BRONZE_TABLES = [
         "raw_table": "analytics.pgr_service_events_raw",
         "bronze_table": "analytics.stg_pgr_service",
         "page_size": 10000,
+        # hierarchytype exists only in some tenant schemas (e.g. namibia).
+        "optional_source_columns": ["hierarchytype"],
         "columns": {
             "id": "id",
             "tenantid": "tenant_id",
