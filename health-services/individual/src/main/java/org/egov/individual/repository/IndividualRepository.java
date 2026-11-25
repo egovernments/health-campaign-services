@@ -4,12 +4,16 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
@@ -49,6 +53,8 @@ import static org.egov.individual.Constants.INVALID_TENANT_ID_MSG;
 @Repository
 @Slf4j
 public class IndividualRepository extends GenericRepository<Individual> {
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     private final String cteQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
     private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
@@ -272,7 +278,12 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("dateOfBirth", searchObject.getDateOfBirth());
         }
         if (searchObject.getSocialCategory() != null) {
-            query = query + "AND additionaldetails->'fields' @> '[{\"key\": \"SOCIAL_CATEGORY\", \"value\":" + "\"" + searchObject.getSocialCategory() + "\"}]' ";
+            // Bound as a JSONB parameter; the value is JSON-encoded, never concatenated into the SQL text.
+            Map<String, Object> socialCategoryField = new LinkedHashMap<>();
+            socialCategoryField.put("key", "SOCIAL_CATEGORY");
+            socialCategoryField.put("value", searchObject.getSocialCategory());
+            query = query + "AND additionaldetails->'fields' @> CAST(:socialCategoryFilter AS jsonb) ";
+            paramsMap.put("socialCategoryFilter", toJsonArrayString(socialCategoryField));
         }
         if (searchObject.getCreatedFrom() != null) {
 
@@ -300,7 +311,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
             query = query + "AND (";
             for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "roles @> '[{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}]'";
+                // Bound as a JSONB parameter; the role code is JSON-encoded, never concatenated into the SQL text.
+                String roleCodeParam = "roleCodeFilter" + i;
+                query = query + "roles @> CAST(:" + roleCodeParam + " AS jsonb)";
+                paramsMap.put(roleCodeParam, toJsonArrayString(
+                        Collections.singletonMap("code", searchObject.getRoleCodes().get(i))));
                 if (i != searchObject.getRoleCodes().size() - 1) {
                     query = query + " OR ";  // Add OR between conditions
                 }
@@ -365,6 +380,18 @@ public class IndividualRepository extends GenericRepository<Individual> {
         log.info("query-------------------------->");
         log.info(query);
         return query;
+    }
+
+    /**
+     * Serializes a single JSON object wrapped in an array (the shape used by the JSONB containment
+     * filters), with all values JSON-escaped, for use as a bound query parameter.
+     */
+    private static String toJsonArrayString(Map<String, Object> jsonObject) {
+        try {
+            return JSON_MAPPER.writeValueAsString(Collections.singletonList(jsonObject));
+        } catch (JsonProcessingException e) {
+            throw new CustomException("INVALID_SEARCH_PARAM", "Unable to process search criteria");
+        }
     }
 
     private String getIdentifierQuery(String tenantId, Identifier identifier, Map<String, Object> paramMap) throws InvalidTenantIdException {

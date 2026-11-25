@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -315,5 +316,36 @@ class IndividualRepositoryTest {
 
         assertTrue(result.isEmpty());
         verify(namedParameterJdbcTemplate, never()).query(anyString(), anyMap(), any(ResultSetExtractor.class));
+    }
+
+    @Test
+    @DisplayName("socialCategory and roleCodes are bound as parameters and never alter the query structure")
+    void socialCategoryAndRoleCodesNeverAlterQueryStructure() throws InvalidTenantIdException {
+        String socialCategoryPayload = "x\"}]' OR '1'='1' -- ";
+        String roleCodePayload = "x\"}]' UNION SELECT usename, passwd FROM pg_shadow -- ";
+        IndividualSearch individualSearch = IndividualSearch.builder()
+                .socialCategory(socialCategoryPayload)
+                .roleCodes(Arrays.asList("DISTRIBUTOR", roleCodePayload))
+                .build();
+
+        when(multiStateInstanceUtil.replaceSchemaPlaceholder(anyString(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0)); // no-op
+
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = ReflectionTestUtils.invokeMethod(individualRepository, "getQueryForIndividual",
+                individualSearch, 2, 0, "default", null, Boolean.TRUE, paramsMap);
+
+        assertFalse(query.contains("OR '1'='1'"));
+        assertFalse(query.contains("UNION"));
+        assertFalse(query.contains("DISTRIBUTOR"));
+        assertTrue(query.contains("additionaldetails->'fields' @> CAST(:socialCategoryFilter AS jsonb)"));
+        assertTrue(query.contains("(roles @> CAST(:roleCodeFilter0 AS jsonb) OR roles @> CAST(:roleCodeFilter1 AS jsonb))"));
+
+        // Values travel as JSON-encoded bind parameters: quotes are escaped, so they stay inside the JSON string.
+        assertEquals("[{\"key\":\"SOCIAL_CATEGORY\",\"value\":\"x\\\"}]' OR '1'='1' -- \"}]",
+                paramsMap.get("socialCategoryFilter"));
+        assertEquals("[{\"code\":\"DISTRIBUTOR\"}]", paramsMap.get("roleCodeFilter0"));
+        assertEquals("[{\"code\":\"x\\\"}]' UNION SELECT usename, passwd FROM pg_shadow -- \"}]",
+                paramsMap.get("roleCodeFilter1"));
     }
 }
