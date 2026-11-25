@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,8 +22,12 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.egov.common.contract.models.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
@@ -955,7 +960,7 @@ public class CommonUtils {
                             .methodType(HttpMethod.POST.name())
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .url(requestInfo.getApiId()).build();
-                    apiDetails.setRequestBody(objectMapper.writeValueAsString(newRequest));
+                    apiDetails.setRequestBody(errorRecordBody(newRequest));
                     ErrorDetails errorDetails = ErrorDetails.builder()
                             .errors(entry.getValue())
                             .apiDetails(apiDetails)
@@ -967,6 +972,46 @@ public class CommonUtils {
             log.error("failure in error handling", exception);
             throw new CustomException("FAILURE_IN_ERROR_HANDLING", exception.getMessage());
         }
+    }
+
+    private static final Set<String> ERROR_RECORD_REQUEST_INFO_FIELDS = new HashSet<>(Arrays.asList(
+            "apiId", "ver", "ts", "action", "did", "key", "msgId", "correlationId"));
+    private static final Set<String> ERROR_RECORD_PAYLOAD_FIELDS = new HashSet<>(Arrays.asList(
+            "id", "clientReferenceId", "individualId", "tenantId"));
+
+    /**
+     * Request body stored in an error record. Error records go to the error topic and from there to the
+     * error index, so they must not hold personal data or the caller's auth token and user details.
+     * Only the listed fields are kept: RequestInfo without authToken, userInfo and plainAccessRequest,
+     * and only the IDs of each record. Anything not listed is dropped, so a new field is never copied.
+     */
+    private static String errorRecordBody(Object request) throws JsonProcessingException {
+        JsonNode tree = objectMapper.valueToTree(request);
+        if (!(tree instanceof ObjectNode)) {
+            return "{}";
+        }
+        ObjectNode root = (ObjectNode) tree;
+        List<String> names = new ArrayList<>();
+        root.fieldNames().forEachRemaining(names::add);
+        for (String name : names) {
+            JsonNode value = root.get(name);
+            if ("RequestInfo".equals(name) && value instanceof ObjectNode) {
+                ((ObjectNode) value).retain(ERROR_RECORD_REQUEST_INFO_FIELDS);
+            } else if (value instanceof ArrayNode) {
+                ArrayNode ids = objectMapper.createArrayNode();
+                value.forEach(item -> {
+                    if (item instanceof ObjectNode) {
+                        ids.add(((ObjectNode) item).retain(ERROR_RECORD_PAYLOAD_FIELDS));
+                    }
+                });
+                root.set(name, ids);
+            } else if (value instanceof ObjectNode) {
+                ((ObjectNode) value).retain(ERROR_RECORD_PAYLOAD_FIELDS);
+            } else if (value != null && !value.isNull()) {
+                root.remove(name);
+            }
+        }
+        return objectMapper.writeValueAsString(root);
     }
 
     /**
