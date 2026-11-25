@@ -54,7 +54,7 @@ public class UserService {
                     Map<String, String> userMap = new HashMap<>();
                     userMap.put(USERNAME, user.getUserName());
                     userMap.put(NAME, user.getName());
-                    userMap.put(ROLE, getStaffRole(tenantId, Collections.singletonList(user)));
+                    userMap.put(ROLE, getJoinedRoles(user));
                     userMap.put(ID, String.valueOf(user.getId()));
                     userMap.put(CITY, user.getCorrespondenceAddress());
                     userIdVsUserInfoCache.put(user.getUuid(), userMap);
@@ -85,7 +85,7 @@ public class UserService {
                 return userMap;
             }
             userName = users.get(0).getUserName();
-            role = getStaffRole(tenantId, users);
+            role = getJoinedRoles(users.get(0));
             userMap.put(USERNAME, userName);
             userMap.put(NAME, users.get(0).getName());
             userMap.put(ROLE, role);
@@ -142,6 +142,16 @@ public class UserService {
             errorProducer.sendToErrorTopic(searchRequest, null, e);
         }
         return new ArrayList<>();
+    }
+
+    public String getJoinedRoles(UserSearchResponseContent user) {
+        if (user == null || user.getRoles() == null) {
+            return null;
+        }
+        return user.getRoles().stream()
+                .map(r -> r.getCode())
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining("_"));
     }
 
     public String getStaffRole(String tenantId, List<UserSearchResponseContent> users) {
@@ -205,7 +215,7 @@ public class UserService {
         if (!users.isEmpty()) {
             userMap.put(USERNAME, users.get(0).getUserName());
             userMap.put(NAME, users.get(0).getName());
-            userMap.put(ROLE, getStaffRole(tenantId, users));
+            userMap.put(ROLE, getJoinedRoles(users.get(0)));
             userMap.put(ID, String.valueOf(users.get(0).getId()));
             userMap.put(CITY, users.get(0).getCorrespondenceAddress());
             userIdVsUserInfoCache.put(userId, userMap);
