@@ -72,6 +72,7 @@ import pendulum
 from airflow.decorators import task
 from airflow.exceptions import AirflowFailException
 from airflow.models import DAG, Variable
+from airflow.sdk import Asset
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils.dates import cron_presets
 from airflow.utils.types import DagRunType
@@ -87,6 +88,10 @@ import sql_flatten_common  # noqa: E402
 from sql_flatten_common import reject_truncate_target, run_transformation  # noqa: E402
 
 log = logging.getLogger(__name__)
+
+# Emitted when every entity has finished (passed or failed); schedules silver_to_gold_mart_refresh.
+# Must match SILVER_TABLES_ASSET in ../silver_to_gold_mart_refresh.py.
+SILVER_TABLES_ASSET = Asset(name="hcm_analytics_silver_tables")
 
 ENTITY_ORDER_VARIABLE = "task_orchestrator_entity_order"
 SCHEDULE_VARIABLE = "task_orchestrator_schedule"
@@ -272,7 +277,16 @@ def _build_dag(dag_id: str, description: str, tags: list[str], runners: list[tup
             upstream_failed and the DAG run is marked failed."""
             log.info("all %d entities succeeded", len(runners))
 
+        @task(trigger_rule="all_done", outlets=[SILVER_TABLES_ASSET])
+        def silver_run_finished() -> None:
+            """Runs once every transform task has finished, whether it passed or
+            failed, and emits SILVER_TABLES_ASSET, which schedules
+            silver_to_gold_mart_refresh. The marts are full rebuilds, so a failed
+            entity only means its silver table is still at its previous state."""
+            log.info("silver run finished; emitting %s", SILVER_TABLES_ASSET)
+
         transform_tasks >> all_entities_succeeded()
+        transform_tasks >> silver_run_finished()
     return built
 
 
