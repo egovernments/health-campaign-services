@@ -37,6 +37,9 @@ class HouseholdFindTest {
     @Mock
     HouseholdRepository householdRepository;
 
+    @Mock
+    HouseholdPiiCryptoService piiCryptoService;
+
     @Test
     @DisplayName("should search only by id if only id is present")
     void shouldOnlySearchByIdIfOnlyIdIsPresent() throws QueryBuilderException, InvalidTenantIdException {
@@ -47,7 +50,7 @@ class HouseholdFindTest {
                 .thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
-                null, false);
+                null, false, householdSearchRequest.getRequestInfo());
 
         verify(householdRepository, times(1))
                 .findById( anyString(),anyList(), eq("id"), anyBoolean());
@@ -63,7 +66,7 @@ class HouseholdFindTest {
                 .thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
-                null, false);
+                null, false, householdSearchRequest.getRequestInfo());
 
         verify(householdRepository, times(1)).findById(anyString(), anyList(),
                 eq("clientReferenceId"), anyBoolean());
@@ -80,7 +83,7 @@ class HouseholdFindTest {
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0,
-                "default", 0L, false);
+                "default", 0L, false, householdSearchRequest.getRequestInfo());
 
         verify(householdRepository, times(0))
                 .findById( anyString(),anyList(), anyString(), anyBoolean());
@@ -97,7 +100,7 @@ class HouseholdFindTest {
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0,
-                "default", 0L, false);
+                "default", 0L, false, householdSearchRequest.getRequestInfo());
 
         verify(householdRepository, times(1))
                 .find(any(HouseholdSearch.class), anyInt(),

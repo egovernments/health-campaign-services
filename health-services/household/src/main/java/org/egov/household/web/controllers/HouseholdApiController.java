@@ -1,7 +1,9 @@
 package org.egov.household.web.controllers;
 
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
@@ -22,13 +24,16 @@ import org.egov.common.models.household.HouseholdMemberSearchRequest;
 import org.egov.common.models.household.HouseholdRequest;
 import org.egov.common.models.household.HouseholdResponse;
 import org.egov.common.models.household.HouseholdSearchRequest;
+import org.egov.common.pii.BulkEnvelopeService;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -60,6 +65,8 @@ public class HouseholdApiController {
 
     private final HouseholdConfiguration householdConfiguration;
 
+    private final BulkEnvelopeService bulkEnvelopeService;
+
 
     @Autowired
     public HouseholdApiController(ObjectMapper objectMapper, HttpServletRequest request,
@@ -67,7 +74,8 @@ public class HouseholdApiController {
                                   HouseholdMemberService householdMemberService,
                                   Producer producer,
                                   HouseholdMemberConfiguration householdMemberConfiguration,
-                                  HouseholdConfiguration householdConfiguration) {
+                                  HouseholdConfiguration householdConfiguration,
+                                  BulkEnvelopeService bulkEnvelopeService) {
         this.objectMapper = objectMapper;
         this.httpServletRequest = request;
         this.householdService = householdService;
@@ -75,6 +83,30 @@ public class HouseholdApiController {
         this.producer = producer;
         this.householdMemberConfiguration = householdMemberConfiguration;
         this.householdConfiguration = householdConfiguration;
+        this.bulkEnvelopeService = bulkEnvelopeService;
+    }
+
+    /**
+     * Seals the bulk request into an encrypted envelope and pushes it. Returns null when it was
+     * queued (encrypted, or parked in the plain DLQ in ALLOW_PLAIN mode), or a 503 response when
+     * enc-service is down in ENCRYPTED_ONLY mode, so the client retries and nothing plain is written.
+     */
+    private ResponseEntity<?> publishBulk(String topic, HouseholdBulkRequest request) {
+        try {
+            bulkEnvelopeService.publish(topic, request);
+            return null;
+        } catch (CustomException e) {
+            if (!BulkEnvelopeService.isEncUnavailable(e)) {
+                throw e;
+            }
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("ResponseInfo", ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), false));
+            body.put("Errors", List.of(Map.of("code", e.getCode(), "message",
+                    "Encryption service is unavailable; the request was not accepted. Please retry.")));
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(householdConfiguration.getEncCircuitOpenMs() / 1000))
+                    .body(body);
+        }
     }
 
     @RequestMapping(value = "/member/v1/bulk/_create", method = RequestMethod.POST)
@@ -171,11 +203,16 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> householdV1CreatePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
+    public ResponseEntity<?> householdV1CreatePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
                                                               @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        // Cache first, as before (the consumer caches the saved form after it). The cache gets the stored form;
+        // the request goes to Kafka inside an encrypted envelope, never in plain text.
         householdService.putInCache(request.getHouseholds());
-        producer.push(householdConfiguration.getConsumerCreateTopic(), request);
+        ResponseEntity<?> unavailable = publishBulk(householdConfiguration.getConsumerCreateTopic(), request);
+        if (unavailable != null) {
+            return unavailable;
+        }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -194,10 +231,13 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> householdV1DeletePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
+    public ResponseEntity<?> householdV1DeletePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
                                                               @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(householdConfiguration.getConsumerDeleteTopic(), request);
+        ResponseEntity<?> unavailable = publishBulk(householdConfiguration.getConsumerDeleteTopic(), request);
+        if (unavailable != null) {
+            return unavailable;
+        }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -214,7 +254,8 @@ public class HouseholdApiController {
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted()
+                urlParams.getIncludeDeleted(),
+                request.getRequestInfo()
         );
         HouseholdBulkResponse response = HouseholdBulkResponse.builder()
                 .responseInfo(
@@ -241,10 +282,13 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> householdV1BulkUpdatePost(@ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
+    public ResponseEntity<?> householdV1BulkUpdatePost(@ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
                                                                   @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(householdConfiguration.getConsumerUpdateTopic(), request);
+        ResponseEntity<?> unavailable = publishBulk(householdConfiguration.getConsumerUpdateTopic(), request);
+        if (unavailable != null) {
+            return unavailable;
+        }
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

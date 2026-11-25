@@ -3,6 +3,7 @@ package org.egov.household.service;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
@@ -10,6 +11,7 @@ import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdRequest;
+import org.egov.common.pii.EncCircuitBreaker;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
@@ -53,11 +55,14 @@ public class HouseholdService {
 
     private final HouseholdEnrichmentService enrichmentService;
 
+    private final HouseholdPiiCryptoService piiCryptoService;
+
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
             validator.getClass().equals(HBoundaryValidator.class)
                     || validator.getClass().equals(HExistentEntityValidator.class)
                     || validator.getClass().equals(HCommunityValidator.class)
-                    || validator.getClass().equals(HCommunityTypeValidator.class);
+                    || validator.getClass().equals(HCommunityTypeValidator.class)
+                    || validator.getClass().equals(HAddressValueValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HNullIdValidator.class)
@@ -68,21 +73,26 @@ public class HouseholdService {
                     || validator.getClass().equals(HRowVersionValidator.class)
                     || validator.getClass().equals(HCommunityValidator.class)
                     || validator.getClass().equals(HCommunityTypeValidator.class)
-                    || validator.getClass().equals(HHouseholdTypeChangeValidator.class);
+                    || validator.getClass().equals(HHouseholdTypeChangeValidator.class)
+                    || validator.getClass().equals(HAddressValueValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForDelete = validator ->
             validator.getClass().equals(HNullIdValidator.class)
                     || validator.getClass().equals(HNonExistentEntityValidator.class)
-                    || validator.getClass().equals(HRowVersionValidator.class);
+                    || validator.getClass().equals(HRowVersionValidator.class)
+                    // delete also carries the client's address: a cipher-shaped value must not be stored or cached
+                    || validator.getClass().equals(HAddressValueValidator.class);
 
     @Autowired
     public HouseholdService(HouseholdRepository householdRepository, IdGenService idGenService,
-                            HouseholdConfiguration householdConfiguration, List<Validator<HouseholdBulkRequest, Household>> validators, HouseholdEnrichmentService enrichmentService) {
+                            HouseholdConfiguration householdConfiguration, List<Validator<HouseholdBulkRequest, Household>> validators, HouseholdEnrichmentService enrichmentService,
+                            HouseholdPiiCryptoService piiCryptoService) {
         this.householdRepository = householdRepository;
         this.idGenService = idGenService;
         this.householdConfiguration = householdConfiguration;
         this.validators = validators;
         this.enrichmentService = enrichmentService;
+        this.piiCryptoService = piiCryptoService;
     }
 
     public Household create(HouseholdRequest request) {
@@ -97,6 +107,19 @@ public class HouseholdService {
     }
 
     public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
+        return create(request, isBulk, false);
+    }
+
+    /**
+     * Bulk create for the Kafka consumer. An encryption failure is thrown, not reported, so the consumer
+     * parks the original encrypted message for replay: the records are not lost and no plain copy goes
+     * to the error topic.
+     */
+    public List<Household> createFromQueue(HouseholdBulkRequest request) {
+        return create(request, true, true);
+    }
+
+    private List<Household> create(HouseholdBulkRequest request, boolean isBulk, boolean fromQueue) {
         log.info("received request to create households");
         Tuple<List<Household>, Map<Household, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
@@ -106,10 +129,12 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
-                householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
+                // Kafka (persister, indexer) and Redis get the stored form; the API answer stays plain
+                householdRepository.save(piiCryptoService.toStoredForm(validEntities), householdConfiguration.getCreateTopic());
                 log.info("successfully created {} households", validEntities.size());
             }
         } catch (Exception exception) {
+            rethrowEncFailureFromQueue(exception, fromQueue);
             log.error("error occurred while creating households: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
@@ -119,7 +144,7 @@ public class HouseholdService {
     }
 
     public SearchResponse<Household> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
-                                            Long lastChangedSince, Boolean includeDeleted) {
+                                            Long lastChangedSince, Boolean includeDeleted, RequestInfo requestInfo) {
 
         String idFieldName = getIdFieldName(householdSearch);
         if (isSearchByIdOnly(householdSearch, idFieldName)) {
@@ -140,6 +165,8 @@ public class HouseholdService {
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             log.info("households found for search by id, size: {}", households.size());
+            // the stored address values are cipher text: the API answers plain values
+            households = piiCryptoService.decrypt(households, requestInfo);
             return SearchResponse.<Household>builder().totalCount(Long.valueOf(households.size())).response(households).build();
         }
         try {
@@ -150,6 +177,7 @@ public class HouseholdService {
                 searchResponse = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
             }
             log.info("households found for search, size: {}", searchResponse.getResponse().size());
+            searchResponse.setResponse(piiCryptoService.decrypt(searchResponse.getResponse(), requestInfo));
             return searchResponse;
         } catch (QueryBuilderException e) {
             log.error("error occurred while searching households: {}", ExceptionUtils.getStackTrace(e));
@@ -168,6 +196,15 @@ public class HouseholdService {
     }
 
     public List<Household> update(HouseholdBulkRequest request, boolean isBulk) {
+        return update(request, isBulk, false);
+    }
+
+    /** Bulk update for the Kafka consumer: an encryption failure is thrown so the consumer parks the message (see {@link #createFromQueue}). */
+    public List<Household> updateFromQueue(HouseholdBulkRequest request) {
+        return update(request, true, true);
+    }
+
+    private List<Household> update(HouseholdBulkRequest request, boolean isBulk, boolean fromQueue) {
         Tuple<List<Household>, Map<Household, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
                 isBulk);
@@ -177,10 +214,11 @@ public class HouseholdService {
             if (!validEntities.isEmpty()) {
                 log.info("updating valid entities");
                 enrichmentService.update(validEntities, request);
-                householdRepository.save(validEntities, householdConfiguration.getUpdateTopic());
+                householdRepository.save(piiCryptoService.toStoredForm(validEntities), householdConfiguration.getUpdateTopic());
                 log.info("successfully updated households");
             }
         } catch (Exception exception) {
+            rethrowEncFailureFromQueue(exception, fromQueue);
             log.error("error occurred while updating households: {}" , ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
@@ -201,6 +239,15 @@ public class HouseholdService {
     }
 
     public List<Household> delete(HouseholdBulkRequest request, boolean isBulk) {
+        return delete(request, isBulk, false);
+    }
+
+    /** Bulk delete for the Kafka consumer: an encryption failure is thrown so the consumer parks the message (see {@link #createFromQueue}). */
+    public List<Household> deleteFromQueue(HouseholdBulkRequest request) {
+        return delete(request, true, true);
+    }
+
+    private List<Household> delete(HouseholdBulkRequest request, boolean isBulk, boolean fromQueue) {
         log.info("deleting households, isBulk={}", isBulk);
         Tuple<List<Household>, Map<Household, ErrorDetails>> tuple = validate(validators,
                 isApplicableForDelete, request,
@@ -211,10 +258,12 @@ public class HouseholdService {
             if (!validEntities.isEmpty()) {
                 enrichmentService.delete(validEntities, request);
                 log.info("households deleted successfully");
-                householdRepository.save(validEntities, householdConfiguration.getDeleteTopic());
+                // the indexer also reads the delete topic, so the message carries the stored form, never the plain request
+                householdRepository.save(piiCryptoService.toStoredForm(validEntities), householdConfiguration.getDeleteTopic());
                 log.info("Households saved to delete topic");
             }
         } catch (Exception exception) {
+            rethrowEncFailureFromQueue(exception, fromQueue);
             log.error("error occurred while deleting households: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
@@ -232,10 +281,31 @@ public class HouseholdService {
         return searchResponse;
     }
 
+    /**
+     * Caches the stored form (address values encrypted), never the plain request.
+     * Best effort: the bulk request is already on its way to Kafka, and the consumer caches the stored form again
+     * after saving, so when enc-service cannot be reached here the cache is skipped, not the request.
+     * A household with a cipher-shaped address value is not cached: the consumer rejects it (HAddressValueValidator).
+     */
     public void putInCache(List<Household> households) {
-        log.info("putting {} households in cache", households.size());
-        householdRepository.putInCache(households);
+        List<Household> stored;
+        try {
+            stored = piiCryptoService.toStoredForm(households == null ? null : households.stream()
+                    .filter(household -> !HAddressValueValidator.hasCipherShapedValue(household))
+                    .collect(Collectors.toList()));
+        } catch (RuntimeException e) {
+            log.warn("{} households not cached: could not encrypt them ({})", households.size(), e.getMessage());
+            return;
+        }
+        log.info("putting {} households in cache", stored.size());
+        householdRepository.putInCache(stored);
         log.info("successfully put households in cache");
+    }
+
+    private static void rethrowEncFailureFromQueue(Exception exception, boolean fromQueue) {
+        if (fromQueue && EncCircuitBreaker.isEncFailure(exception)) {
+            throw (CustomException) exception;
+        }
     }
 
     private Tuple<List<Household>, Map<Household, ErrorDetails>> validate(List<Validator<HouseholdBulkRequest, Household>> validators,

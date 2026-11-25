@@ -5,6 +5,7 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberRequest;
+import org.egov.common.pii.BulkEnvelopeService;
 import org.egov.common.producer.Producer;
 import org.egov.household.TestConfiguration;
 import org.egov.household.config.HouseholdConfiguration;
@@ -61,6 +62,9 @@ class HouseholdMemberApiControllerTest {
 
     @MockBean
     private HouseholdMemberConfiguration householdMemberConfiguration;
+
+    @MockBean
+    private BulkEnvelopeService bulkEnvelopeService;
 
     @Test
     @DisplayName("should household member create request pass")

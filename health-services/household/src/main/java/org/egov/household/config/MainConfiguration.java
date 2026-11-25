@@ -6,7 +6,9 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import org.egov.MdmsClientApplication;
 import org.egov.common.utils.MultiStateInstanceUtil;
+import org.egov.encryption.config.EncryptionConfiguration;
 import org.egov.tracer.config.TracerConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -14,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -27,7 +30,16 @@ import jakarta.annotation.PostConstruct;
 import java.util.TimeZone;
 @Import({TracerConfiguration.class, MultiStateInstanceUtil.class})
 @Configuration
-@ComponentScan(basePackages = {"org.egov"})
+// enc-client is on the class path now and this scan reaches it. Two of its classes clash with this service:
+// EncryptionConfiguration defines a second "objectMapper" bean (it would replace the one below, whose settings the API
+// depends on) and org.egov.encryption.producer.Producer has the same bean name "producer" as
+// org.egov.common.producer.Producer. Both are left out of the scan; the enc-client Producer is declared below
+// under its own name. MdmsClientApplication (mdms-client jar, package org.egov) is a @SpringBootApplication that would
+// scan all of org.egov a second time without these exclusions, so it is left out too.
+@ComponentScan(basePackages = {"org.egov"},
+        excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
+                classes = {EncryptionConfiguration.class, org.egov.encryption.producer.Producer.class,
+                        MdmsClientApplication.class}))
 public class MainConfiguration {
 
     @Value("${app.timezone}")
@@ -44,6 +56,12 @@ public class MainConfiguration {
     @Bean
     public ObjectMapper objectMapper(){
         return new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).setTimeZone(TimeZone.getTimeZone(timeZone));
+    }
+
+    /** The audit producer enc-client's AuditService needs (see the scan note above). */
+    @Bean("encClientProducer")
+    public org.egov.encryption.producer.Producer encClientProducer() {
+        return new org.egov.encryption.producer.Producer();
     }
 
     @Bean

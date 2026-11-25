@@ -48,4 +48,21 @@ public class HouseholdConfiguration {
 
     @Value("${household.type.community.creator.role}")
     private String communityHouseholdCreatorRoleCode;
+
+    // ---- PII encryption at rest ----
+
+    /** enc-client SecurityPolicy model used to encrypt the address values (attribute "value"). */
+    @Value("${household.pii.encrypt.model:HouseholdPiiEncrypt}")
+    private String piiEncryptModel;
+
+    /** enc-client SecurityPolicy model used to decrypt the address values (one node per value). */
+    @Value("${household.pii.decrypt.model:HouseholdPiiDecrypt}")
+    private String piiDecryptModel;
+
+    // The bulk envelope, DLQ, enc-service timeout and circuit-breaker settings are read by
+    // org.egov.common.pii (health-services-common); application.properties maps the household.* names into them.
+
+    /** Circuit open period, same value as the library's egov.enc.circuit.open.ms; the 503 answer sends it as Retry-After. */
+    @Value("${household.enc.circuit.open.ms:30000}")
+    private Long encCircuitOpenMs;
 }
