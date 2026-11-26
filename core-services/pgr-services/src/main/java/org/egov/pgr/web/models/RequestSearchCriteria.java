@@ -2,10 +2,12 @@ package org.egov.pgr.web.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.egov.tracer.annotations.CustomSafeHtml;
 
 import java.util.Set;
@@ -76,6 +78,18 @@ public class RequestSearchCriteria {
 
     @JsonIgnore
     private Boolean isPlainSearch;
+
+    /**
+     * Uuid of the user whose complaints (as complainant or creator) the search is restricted to.
+     * Set by the server only: it has no setter, so it cannot be bound from the request params.
+     */
+    @JsonIgnore
+    @Setter(AccessLevel.NONE)
+    private String restrictedToUserId;
+
+    public void restrictToUser(String userUuid){
+        this.restrictedToUserId = userUuid;
+    }
 
 
     public enum SortOrder {

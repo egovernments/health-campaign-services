@@ -36,6 +36,7 @@ import org.egov.hrms.service.UserService;
 import org.egov.hrms.utils.ErrorConstants;
 import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.utils.HRMSUtils;
+import org.egov.hrms.utils.TenantAccessUtil;
 import org.egov.hrms.web.contract.EmployeeRequest;
 import org.egov.hrms.web.contract.EmployeeResponse;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
@@ -100,6 +101,7 @@ public class EmployeeValidator {
 	 */
 	public void validateCreateEmployee(EmployeeRequest request,
 			List<Map<String, Object>> rowFailuresOut) {
+		validateTenantAccess(request.getRequestInfo(), request.getEmployees());
 		Map<String, String> errorMap = new HashMap<>();
 		validateDataUniqueness(request.getEmployees(), errorMap);
 		autoGenerateMissingMobileNumbers(request.getEmployees(), request.getRequestInfo());
@@ -122,6 +124,20 @@ public class EmployeeValidator {
 		}
 		if(!CollectionUtils.isEmpty(errorMap.keySet()))
 			throw new CustomException(errorMap);
+	}
+
+	/**
+	 * Checks tenant access for the tenantId of every employee and, when present, of its user.
+	 *
+	 * @param requestInfo
+	 * @param employees
+	 */
+	private void validateTenantAccess(RequestInfo requestInfo, List<Employee> employees) {
+		for (Employee employee : employees) {
+			TenantAccessUtil.validateTenantAccess(requestInfo, employee.getTenantId());
+			if (employee.getUser() != null)
+				TenantAccessUtil.validateTenantAccess(requestInfo, employee.getUser().getTenantId());
+		}
 	}
 
 	private void validatePassword(EmployeeRequest request, Map<String, String> errorMap) {
@@ -197,6 +213,7 @@ public class EmployeeValidator {
 	 * @param criteria
 	 */
 	public void validateSearchRequest(RequestInfo requestInfo, EmployeeSearchCriteria criteria) {
+		TenantAccessUtil.validateTenantAccess(requestInfo, criteria.getTenantId());
 		Map<String, String> errorMap = new HashMap<>();
 
 		if(requestInfo.getUserInfo() != null && requestInfo.getUserInfo().getType().equalsIgnoreCase(CITIZEN_TYPE_CODE) && !CollectionUtils.isEmpty(criteria.getIds()))
@@ -753,6 +770,7 @@ public class EmployeeValidator {
 	 * @param request
 	 */
 	public void validateUpdateEmployee(EmployeeRequest request) {
+		validateTenantAccess(request.getRequestInfo(), request.getEmployees());
 		Map<String, String> errorMap = new HashMap<>();
 		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
 		Map<String, List<String>> mdmsData = mdmsService.getMDMSData(request.getRequestInfo(), request.getEmployees().get(0).getTenantId());
@@ -962,7 +980,7 @@ public class EmployeeValidator {
 
 	}
 
-	public void validateEmployeeCountRequest(String tenantId){
+	public void validateEmployeeCountRequest(RequestInfo requestInfo, String tenantId){
 		Map<String, String> errorMap = new HashMap<>();
 		if(StringUtils.isEmpty(tenantId))
 			errorMap.put(ErrorConstants.HRMS_EMPLOYEE_COUNT_ERROR_CODE, ErrorConstants.HRMS_EMPLOYEE_COUNT_ERROR_MSG);
@@ -970,6 +988,7 @@ public class EmployeeValidator {
 		if(!CollectionUtils.isEmpty(errorMap.keySet())) {
 			throw new CustomException(errorMap);
 		}
+		TenantAccessUtil.validateTenantAccess(requestInfo, tenantId);
 	}
 
 }

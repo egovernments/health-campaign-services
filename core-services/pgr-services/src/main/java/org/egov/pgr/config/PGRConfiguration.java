@@ -121,6 +121,10 @@ public class PGRConfiguration {
     @Value("${pgr.search.max.limit}")
     private Integer maxLimit;
 
+    // Comma separated role codes. Users with any of these roles can search all the complaints of a tenant
+    @Value("${pgr.search.all.complaints.roles}")
+    private String searchAllComplaintsRoles;
+
 
     //MDMS
     @Value("${egov.mdms.host}")

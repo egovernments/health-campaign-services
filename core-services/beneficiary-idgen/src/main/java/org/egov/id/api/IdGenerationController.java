@@ -10,6 +10,7 @@ import org.egov.id.config.PropertiesManager;
 import org.egov.id.producer.IdGenProducer;
 import org.egov.id.service.IdDispatchService;
 import org.egov.id.service.IdGenerationService;
+import org.egov.id.utils.TenantAccessUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,6 +51,9 @@ public class IdGenerationController {
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_generate")
 	public IDPoolGenerationResponse generateIDs(@RequestBody @Valid IDPoolGenerationRequest request) throws Exception {
+		for (BatchRequest batch : request.getBatchRequestList()) {
+			TenantAccessUtil.validateTenantAccess(request.getRequestInfo(), batch.getTenantId());
+		}
 		IDPoolGenerationResponse idPoolGenerationResponse = idGenerationService.generateIDPool(request);
 		return idPoolGenerationResponse;
 	}
@@ -67,6 +71,7 @@ public class IdGenerationController {
 			, @ApiParam(value = "Limit for the dispatched ids to retrieve", defaultValue = "10") @Valid @RequestParam(value = "limit", required = false, defaultValue = "10") Integer limit
 			, @ApiParam(value = "Offset for the dispatched ids to retrieve", defaultValue = "0") @Valid @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset
 	)  throws Exception {
+		TenantAccessUtil.validateTenantAccess(request.getRequestInfo(), request.getClientInfo().getTenantId());
 		IdDispatchResponse response = idDispatchService.dispatchIds(request, limit, offset);
 		return response;
 	}
@@ -81,6 +86,7 @@ public class IdGenerationController {
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_search")
 	public IdDispatchResponse searchGeneratedIDs(@RequestBody @Valid IdPoolSearchRequest request)  throws Exception {
+		TenantAccessUtil.validateTenantAccess(request.getRequestInfo(), request.getIdPoolSearch().getTenantId());
 		return idDispatchService.searchIds(request.getRequestInfo(), request.getIdPoolSearch());
 	}
 
@@ -93,6 +99,9 @@ public class IdGenerationController {
 	 */
 	@RequestMapping(value = "id_pool/_update", method = RequestMethod.POST)
 	public ResponseEntity<ResponseInfo> idRecordUpdate(@ApiParam(value = "Details for the IdRecord.", required = true) @Valid @RequestBody IdRecordBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+		for (IdRecord idRecord : request.getIdRecords()) {
+			TenantAccessUtil.validateTenantAccess(request.getRequestInfo(), idRecord.getTenantId());
+		}
 		request.getRequestInfo().setApiId(servletRequest.getRequestURI());
 		producer.push(propertiesManager.getBulkIdUpdateTopic(), request);
 

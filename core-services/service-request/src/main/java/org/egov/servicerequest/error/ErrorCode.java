@@ -98,4 +98,8 @@ public class ErrorCode {
 
     public static final String INVALID_TENANT_ID_ERR_CODE = "INVALID_TENANT_ID";
 
+    public static final String INVALID_TENANT_ACCESS_ERR_CODE = "INVALID_TENANT_ACCESS";
+
+    public static final String INVALID_TENANT_ACCESS_ERR_MSG = "User does not have access to the requested tenant";
+
 }

@@ -7,6 +7,7 @@ import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.producer.Producer;
 import org.egov.pgr.repository.PGRRepository;
 import org.egov.pgr.util.MDMSUtils;
+import org.egov.pgr.util.TenantAccessUtil;
 import org.egov.pgr.validator.ServiceRequestValidator;
 import org.egov.pgr.web.models.RequestSearchCriteria;
 import org.egov.pgr.web.models.ServiceRequest;
@@ -67,6 +68,7 @@ public class PGRService {
      */
     public ServiceRequest create(ServiceRequest request){
         String tenantId = request.getService().getTenantId();
+        TenantAccessUtil.validateTenantAccess(request.getRequestInfo(), tenantId);
         Object mdmsData = mdmsUtils.mDMSCall(request);
         validator.validateCreate(request, mdmsData);
         enrichmentService.enrichCreateRequest(request);
@@ -127,6 +129,7 @@ public class PGRService {
      * @return
      */
     public ServiceRequest update(ServiceRequest request){
+        TenantAccessUtil.validateTenantAccess(request.getRequestInfo(), request.getService().getTenantId());
         Object mdmsData = mdmsUtils.mDMSCall(request);
         validator.validateUpdate(request, mdmsData);
         enrichmentService.enrichUpdateRequest(request);
@@ -142,6 +145,8 @@ public class PGRService {
      * @return
      */
     public Integer count(RequestInfo requestInfo, RequestSearchCriteria criteria) throws InvalidTenantIdException {
+        TenantAccessUtil.validateTenantAccess(requestInfo, criteria.getTenantId());
+        enrichmentService.restrictToOwnComplaints(requestInfo, criteria);
         criteria.setIsPlainSearch(false);
         Integer count = repository.getCount(criteria);
         return count;
@@ -149,7 +154,7 @@ public class PGRService {
 
 
     public List<ServiceWrapper> plainSearch(RequestInfo requestInfo, RequestSearchCriteria criteria) throws InvalidTenantIdException {
-        validator.validatePlainSearch(criteria);
+        validator.validatePlainSearch(requestInfo, criteria);
 
         criteria.setIsPlainSearch(true);
 

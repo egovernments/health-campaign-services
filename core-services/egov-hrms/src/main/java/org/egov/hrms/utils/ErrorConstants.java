@@ -209,4 +209,8 @@ public class ErrorConstants {
 
 	public static final String TENANT_ID_EXCEPTION_MESSAGE = "tenant id cannot be null or empty";
 
+	public static final String INVALID_TENANT_ACCESS = "INVALID_TENANT_ACCESS";
+
+	public static final String INVALID_TENANT_ACCESS_MESSAGE = "User does not have access to the requested tenant";
+
 }

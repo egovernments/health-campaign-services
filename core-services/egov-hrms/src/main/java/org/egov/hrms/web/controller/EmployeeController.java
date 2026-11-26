@@ -40,6 +40,8 @@
 
 package org.egov.hrms.web.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.hrms.service.EmployeeService;
@@ -67,6 +69,11 @@ public class EmployeeController {
 	
 	@Autowired
 	private EmployeeValidator validator;
+
+	@Autowired
+	private ObjectMapper objectMapper;
+
+	private static final String REQUEST_INFO_KEY = "RequestInfo";
 
 
 	/**
@@ -142,10 +149,15 @@ public class EmployeeController {
 
 	@PostMapping("_count")
 	@ResponseBody
-	private ResponseEntity<?> count(@RequestParam("tenantId") String tenantId, @RequestBody RequestInfo requestInfo) {
+	private ResponseEntity<?> count(@RequestParam("tenantId") String tenantId, @RequestBody JsonNode body) {
+
+		// Callers send {"RequestInfo": {...}}, which is where the gateway puts the logged in user.
+		// A body that is the RequestInfo itself is still read, for older callers.
+		JsonNode requestInfoNode = body.has(REQUEST_INFO_KEY) ? body.get(REQUEST_INFO_KEY) : body;
+		RequestInfo requestInfo = objectMapper.convertValue(requestInfoNode, RequestInfo.class);
 
 		Map<String,Object> response = new HashMap<>();
-		validator.validateEmployeeCountRequest(tenantId);
+		validator.validateEmployeeCountRequest(requestInfo, tenantId);
 		response = employeeService.getEmployeeCountResponse(requestInfo,tenantId);
 		return new ResponseEntity<>(response,HttpStatus.OK);
 	}

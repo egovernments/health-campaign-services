@@ -1,9 +1,11 @@
 package org.egov.pgr.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.Role;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.repository.IdGenRepository;
 import org.egov.pgr.util.PGRUtils;
+import org.egov.pgr.util.TenantAccessUtil;
 import org.egov.pgr.web.models.AuditDetails;
 import org.egov.pgr.web.models.Idgen.IdResponse;
 import org.egov.pgr.web.models.RequestSearchCriteria;
@@ -15,7 +17,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -114,6 +118,8 @@ public class EnrichmentService {
 
         criteria.setAccountId(requestInfo.getUserInfo().getUuid());
 
+        restrictToOwnComplaints(requestInfo, criteria);
+
         String tenantId = (criteria.getTenantId()!=null) ? criteria.getTenantId() : requestInfo.getUserInfo().getTenantId();
 
         if(criteria.getMobileNumber()!=null){
@@ -129,6 +135,40 @@ public class EnrichmentService {
         if(criteria.getLimit()!=null && criteria.getLimit() > config.getMaxLimit())
             criteria.setLimit(config.getMaxLimit());
 
+    }
+
+
+    /**
+     * Restricts the search to the complaints raised or created by the logged in user, unless the user has
+     * one of the roles configured in pgr.search.all.complaints.roles (the complaint handlers).
+     * The restriction is set by the server only, mobileNumber and userIds sent by the client can only narrow it further.
+     * @param requestInfo
+     * @param criteria
+     */
+    public void restrictToOwnComplaints(RequestInfo requestInfo, RequestSearchCriteria criteria){
+
+        // Internal calls from other services have no user roles and are not restricted, same as the tenant check
+        if(TenantAccessUtil.isInternalCall(requestInfo))
+            return;
+
+        List<Role> roles = requestInfo.getUserInfo().getRoles();
+        String searchAllRolesStr = config.getSearchAllComplaintsRoles();
+
+        if(StringUtils.hasText(searchAllRolesStr) && StringUtils.hasText(criteria.getTenantId())){
+            Set<String> searchAllRoles = Arrays.stream(searchAllRolesStr.split(",")).map(String::trim).collect(Collectors.toSet());
+            // A handler role counts only at the searched tenant or at its state level parent.
+            // A search without a tenant is always restricted.
+            if(roles.stream().anyMatch(role -> role != null && searchAllRoles.contains(role.getCode())
+                    && TenantAccessUtil.roleCoversTenant(role, criteria.getTenantId())))
+                return;
+        }
+
+        String userUuid = requestInfo.getUserInfo().getUuid();
+
+        if(StringUtils.isEmpty(userUuid))
+            throw new CustomException("INVALID_SEARCH","Search cannot be restricted as the logged in user has no uuid");
+
+        criteria.restrictToUser(userUuid);
     }
 
 
