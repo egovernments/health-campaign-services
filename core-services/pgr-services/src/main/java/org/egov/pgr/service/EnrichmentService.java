@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -112,13 +113,7 @@ public class EnrichmentService {
             criteria.setMobileNumber(userMobileNumber);
         }
 
-        criteria.setAccountId(requestInfo.getUserInfo().getUuid());
-
-        String tenantId = (criteria.getTenantId()!=null) ? criteria.getTenantId() : requestInfo.getUserInfo().getTenantId();
-
-        if(criteria.getMobileNumber()!=null){
-            userService.enrichUserIds(tenantId, criteria);
-        }
+        scopeSearchCriteria(requestInfo, criteria);
 
         if(criteria.getLimit()==null)
             criteria.setLimit(config.getDefaultLimit());
@@ -129,6 +124,41 @@ public class EnrichmentService {
         if(criteria.getLimit()!=null && criteria.getLimit() > config.getMaxLimit())
             criteria.setLimit(config.getMaxLimit());
 
+    }
+
+
+    /**
+     * Derives the record ownership filter (userIds) for a search or count from the authenticated
+     * user. userIds maps to {@code ser.accountId IN (...)} in PGRQueryBuilder and is never taken
+     * from the request.
+     *
+     * A citizen is always limited to their own complaints, whatever other params are supplied.
+     * Other user types may look complaints up by mobileNumber.
+     *
+     * @param requestInfo the authenticated user
+     * @param criteria the search criteria, updated in place
+     */
+    public void scopeSearchCriteria(RequestInfo requestInfo, RequestSearchCriteria criteria){
+
+        criteria.setUserIds(null);
+        criteria.setAccountId(requestInfo.getUserInfo().getUuid());
+
+        if(isCitizen(requestInfo)){
+            criteria.setUserIds(Collections.singleton(requestInfo.getUserInfo().getUuid()));
+            criteria.setMobileNumber(null);
+        }
+        else if(criteria.getMobileNumber()!=null){
+            String tenantId = (criteria.getTenantId()!=null) ? criteria.getTenantId() : requestInfo.getUserInfo().getTenantId();
+            userService.enrichUserIds(tenantId, criteria);
+        }
+    }
+
+    /**
+     * @return true when the authenticated user is a citizen
+     */
+    public boolean isCitizen(RequestInfo requestInfo){
+        return requestInfo != null && requestInfo.getUserInfo() != null
+                && USERTYPE_CITIZEN.equalsIgnoreCase(requestInfo.getUserInfo().getType());
     }
 
 
