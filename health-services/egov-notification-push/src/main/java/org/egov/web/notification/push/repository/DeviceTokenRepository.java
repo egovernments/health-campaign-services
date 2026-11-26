@@ -1,5 +1,7 @@
 package org.egov.web.notification.push.repository;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -123,10 +125,14 @@ public class DeviceTokenRepository {
 	}
 
 	/**
-	 * Fills the {schema} placeholder through DIGIT's MultiStateInstanceUtil, which validates the tenantId
-	 * before it is used as a schema name; the service's existing error codes are kept.
+	 * Non-central: the tenantId is not used in the query, so the default schema is used for any tenantId.
+	 * Central: fills the {schema} placeholder through DIGIT's MultiStateInstanceUtil, which validates the
+	 * tenantId before it is used as a schema name; the service's existing error codes are kept.
 	 */
 	private String resolveSchema(String query, String tenantId) {
+		if (!Boolean.TRUE.equals(multiStateInstanceUtil.getIsEnvironmentCentralInstance())) {
+			return query.replace(SCHEMA_REPLACE_STRING + ".", "");
+		}
 		if (tenantId == null || tenantId.isEmpty()) {
 			throw new CustomException("MISSING_TENANT_ID", "TenantId is required for schema resolution");
 		}

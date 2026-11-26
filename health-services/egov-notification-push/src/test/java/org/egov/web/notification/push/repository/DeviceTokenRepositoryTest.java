@@ -179,4 +179,40 @@ class DeviceTokenRepositoryTest {
         org.mockito.Mockito.verify(namedParameterJdbcTemplate).update(
                 eq("DELETE FROM eg_push_device_tokens WHERE devicetoken IN (:deviceTokens)"), any(Map.class));
     }
+
+    @Test
+    void nonCentralInstance_missingTenantId_usesDefaultSchemaAsBefore() {
+        org.springframework.test.util.ReflectionTestUtils.setField(repository, "multiStateInstanceUtil",
+                new MultiStateInstanceUtil(1, false, 0));
+        when(namedParameterJdbcTemplate.query(anyString(), any(Map.class), eq(rowMapper)))
+                .thenReturn(Collections.emptyList());
+
+        repository.fetchTokensByFacilityId("fac-1", null);
+        repository.fetchTokensByFacilityId("fac-1", "");
+
+        org.mockito.Mockito.verify(namedParameterJdbcTemplate, org.mockito.Mockito.times(2)).query(
+                org.mockito.ArgumentMatchers.contains("FROM eg_push_device_tokens WHERE"), any(Map.class), eq(rowMapper));
+    }
+
+    @Test
+    void nonCentralInstance_hyphenatedTenantId_usesDefaultSchemaAsBefore() {
+        org.springframework.test.util.ReflectionTestUtils.setField(repository, "multiStateInstanceUtil",
+                new MultiStateInstanceUtil(1, false, 0));
+        when(namedParameterJdbcTemplate.query(anyString(), any(Map.class), eq(rowMapper)))
+                .thenReturn(Collections.emptyList());
+
+        repository.fetchTokensByUserIds(List.of("user-1"), "pb-dev");
+
+        org.mockito.Mockito.verify(namedParameterJdbcTemplate).query(
+                org.mockito.ArgumentMatchers.contains("FROM eg_push_device_tokens WHERE"), any(Map.class), eq(rowMapper));
+    }
+
+    @Test
+    void centralInstance_nullTenantId_keepsExistingErrorCode() {
+        org.egov.tracer.model.CustomException ex = assertThrows(org.egov.tracer.model.CustomException.class,
+                () -> repository.fetchTokensByUserIds(List.of("user-1"), null));
+
+        assertEquals("MISSING_TENANT_ID", ex.getCode());
+        org.mockito.Mockito.verifyNoInteractions(namedParameterJdbcTemplate);
+    }
 }
