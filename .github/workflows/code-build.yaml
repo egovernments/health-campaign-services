@@ -1,0 +1,223 @@
+# Code Build — provisioned by DIGIT-DevOps reusable-setup; do not edit the
+# branch / service option lists by hand — "Build — Setup" (sync mode) keeps them
+# current (service list from build-config.yml, branch list from live branches).
+# This workflow lives only on the default branch; pick the branch to build with
+# "Build from Branch" (leave GitHub's "Use workflow from" on the default branch).
+# Delegates the build (+ Trivy) to the central engine in DIGIT-DevOps.
+name: Build — Code
+run-name: Build — Code · ${{ (inputs.all_services && 'all services') || inputs.service }} (${{ inputs.build_branch }})
+on:
+  workflow_dispatch:
+    inputs:
+      build_branch:
+        description: "Build from Branch — pick the branch whose code is built"
+        required: true
+        type: choice
+        default: master
+        options:
+          - master
+      all_services:
+        description: "Build ALL services from build-config.yml (ignores the Service pick)"
+        required: false
+        type: boolean
+        default: false
+      service:
+        description: "Service image to build (from build-config.yml) — ignored when All services is on"
+        required: false
+        type: choice
+        options:
+          - airflow-trigger-service
+          - attendance
+          - auth-proxy
+          - beneficiary-idgen
+          - boundary-management
+          - census-service
+          - dashboard-analytics
+          - egov-hrms
+          - egov-notification-mail
+          - egov-notification-push
+          - egov-survey-services
+          - error-handler
+          - excel-ingestion
+          - facility
+          - fhir-supplychain-transformer
+          - fhiradapter
+          - geopode-adapter
+          - health-attendance
+          - health-hrms
+          - health-individual
+          - health-notification-service
+          - health-pgr-services
+          - health-project
+          - health-service-request
+          - health-services-common
+          - health-services-models
+          - household
+          - inbox
+          - individual
+          - microplan-ui
+          - pgr-services
+          - plan-service
+          - product
+          - project
+          - project-factory
+          - referralmanagement
+          - resource-generator
+          - service-request
+          - stock
+          - transformer
+          - user-otp
+          - workbench-ui
+          - worker-registry
+  # Auto-build on merge: only the services whose paths changed (see the resolve job).
+  push:
+    branches: [develop, master]
+jobs:
+  # Resolve the build matrix: every service when all_services is on, else the one
+  # picked. Read from the branch being built so new services need no re-sync.
+  resolve:
+    # Repo switch DELIVERY_MODE=automatic enables auto build+deliver on a push; manual (default)
+    # means a merge does nothing (you still dispatch builds by hand). Dispatch always runs.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.DELIVERY_MODE == 'automatic' }}
+    runs-on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+    outputs:
+      services: ${{ steps.list.outputs.services }}
+      image_tag: ${{ steps.list.outputs.image_tag }}
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.build_branch || github.ref_name }}
+      - name: Install yq
+        run: |
+          VERSION="v4.54.1"
+          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/download/${VERSION}/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+      - name: Build the service matrix
+        id: list
+        env:
+          ALL: ${{ inputs.all_services }}
+          SERVICE: ${{ inputs.service }}
+          CONFIG: build/build-config.yml
+          BRANCH: ${{ inputs.build_branch || github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            test -f "$CONFIG" || { echo "::error::$CONFIG not found on $BRANCH"; exit 1; }
+            # Changed files in this push; on a first push (no before) fall back to HEAD~1.
+            if printf '%s' "$BEFORE" | grep -qE '^0+$' || [ -z "$BEFORE" ]; then
+              CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+            else
+              CHANGED=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" --jq '.files[].filename' 2>/dev/null || true)
+            fi
+            SVC=""
+            while read -r IMG WD; do
+              { [ -n "$IMG" ] && [ -n "$WD" ]; } || continue
+              case "$IMG" in *-db) continue;; esac
+              if printf '%s\n' "$CHANGED" | grep -q "^$WD/"; then SVC="$SVC$IMG"$'\n'; fi
+            done < <(yq eval '.config[].build[] | .["image-name"] + " " + .["work-dir"]' "$CONFIG" 2>/dev/null)
+            SVC=$(printf '%s' "$SVC" | grep -v '^$' | grep -vxF placeholder | sort -u)
+            if [ -z "$SVC" ]; then
+              echo "No service paths changed on $BRANCH; nothing to build or deliver."
+              echo "services=[]" >> "$GITHUB_OUTPUT"
+              echo "image_tag=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          elif [ "$ALL" = "true" ]; then
+            test -f "$CONFIG" || { echo "::error::$CONFIG not found on $BRANCH"; exit 1; }
+            SVC=$(yq eval '.config[].build[]."image-name"' "$CONFIG" | grep -vE -- '-db$' | grep -vxF placeholder | sort -u)
+            [ -n "$SVC" ] || { echo "::error::no services found in $CONFIG"; exit 1; }
+          else
+            SVC="$SERVICE"
+            { [ -n "$SVC" ] && [ "$SVC" != "placeholder" ]; } || { echo "::error::pick a service, or turn on All services"; exit 1; }
+          fi
+          JSON=$(printf '%s\n' "$SVC" | grep -v '^$' | jq -R . | jq -cs .)
+          echo "services=$JSON" >> "$GITHUB_OUTPUT"
+          # The tag the build uses: <branch>-<short-sha> (same for every service this commit).
+          echo "image_tag=${BRANCH##*/}-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Will build: $JSON"
+  # One engine call per service, run in parallel (fail-fast:false so a blocked or
+  # failed service doesn't cancel the rest). For all-services each leg publishes
+  # only its own dashboard subtree (publish_home:false) — the shared landing index
+  # is rebuilt once by the `publish` job below, so parallel legs never race on it.
+  # A single-service build keeps publish_home:true (it owns the index itself).
+  build:
+    needs: resolve
+    permissions:
+      contents: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.resolve.outputs.services) }}
+    uses: egovernments/DIGIT-DevOps/.github/workflows/reusable-build.yaml@reusable-build-v1
+    with:
+      service: ${{ matrix.service }}
+      build_branch: ${{ inputs.build_branch }}
+      # Repo var BUILD_RUNNER overrides the runner (e.g. a self-hosted label); default GitHub-hosted.
+      runs_on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+      enable_trivy: true
+      scan_branches: ${{ vars.TRIVY_SCAN_BRANCHES }}
+      publish_home: ${{ !inputs.all_services }}
+      # Setup sets this to false for build-only repos without a dashboard (Pages).
+      # The Trivy gate still runs; findings go to the job summary. Default: dashboard on.
+      publish_dashboard: true
+    secrets:
+      DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+      DOCKER_ACCESS_TOKEN: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+  # Deliver: on a develop/master build, promote each built service to its env's Kargo
+  # stage. No-op unless KARGO_STAGES is set. Auto-promotes to DEV (unified-dev).
+  deliver:
+    needs: [resolve, build]
+    if: ${{ needs.build.result == 'success' && vars.DELIVERY_MODE == 'automatic' && vars.KARGO_STAGES != '' && contains(fromJSON('["develop","master"]'), inputs.build_branch || github.ref_name) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.resolve.outputs.services) }}
+    uses: egovernments/DIGIT-DevOps/.github/workflows/reusable-deliver.yaml@reusable-build-v1
+    with:
+      service: ${{ matrix.service }}
+      image_tag: ${{ needs.resolve.outputs.image_tag }}
+      environment: DEV
+      runs_on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+      kargo_url: ${{ vars.KARGO_URL }}
+      kargo_stages: ${{ vars.KARGO_STAGES }}
+    secrets: inherit
+  # All-services: rebuild the dashboard landing index once (from every service's
+  # summary the parallel legs published) and roll up the overall outcome.
+  publish:
+    needs: [resolve, build]
+    if: ${{ always() && inputs.all_services }}
+    runs-on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.build_branch }}
+      - name: Refresh dashboard home + roll-up
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ needs.build.result }}
+          SERVICES: ${{ needs.resolve.outputs.services }}
+          BRANCH: ${{ inputs.build_branch }}
+        run: |
+          set -euo pipefail
+          if [ -f .trivy/dashboard/publish.sh ]; then
+            bash .trivy/dashboard/publish.sh home || echo "::warning::dashboard home refresh failed"
+          fi
+          COUNT=$(printf '%s' "$SERVICES" | jq 'length' 2>/dev/null || echo "?")
+          {
+            echo "### Build — Code · all services"
+            echo ""
+            echo "- Branch: \`$BRANCH\`"
+            echo "- Services dispatched: **$COUNT** (built in parallel)"
+            echo "- Matrix result: **$RESULT** — each service is a separate job above; a red leg means that service's build or Trivy gate failed, the others still ran."
+            echo "- Per-service scan reports: the Trivy dashboard under \`/security/trivy\`."
+          } >> "$GITHUB_STEP_SUMMARY"
