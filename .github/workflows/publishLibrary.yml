@@ -50,6 +50,7 @@ jobs:
           LIB_DIR: health-services/libraries/${{ github.event.inputs.library }}
         # Not -q inside $(...): that captured Maven's own error output and hid it.
         run: |
+          mvn -v
           mvn -B -f "$LIB_DIR/pom.xml" -s "$LIB_DIR/settings.xml" help:evaluate \
             -Dexpression=project.version -Doutput="$RUNNER_TEMP/version.txt"
           VERSION=$(cat "$RUNNER_TEMP/version.txt")
