@@ -43,8 +43,11 @@ jobs:
         env:
           LIB: ${{ github.event.inputs.library }}
           LIB_DIR: health-services/libraries/${{ github.event.inputs.library }}
+        # Not -q inside $(...): that captured Maven's own error output and hid it.
         run: |
-          VERSION=$(mvn -B -q -f "$LIB_DIR/pom.xml" help:evaluate -Dexpression=project.version -DforceStdout)
+          mvn -B -f "$LIB_DIR/pom.xml" -s "$LIB_DIR/settings.xml" help:evaluate \
+            -Dexpression=project.version -Doutput="$RUNNER_TEMP/version.txt"
+          VERSION=$(cat "$RUNNER_TEMP/version.txt")
           echo "Publishing $LIB $VERSION"
           echo "| Library | Version |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
