@@ -119,7 +119,7 @@ class EmployeeValidatorTenantAccessTest {
 
 	@Test
 	void searchWithoutTenantIsRejected() {
-		for (String tenant : new String[] {null, ""}) {
+		for (String tenant : new String[] {null, "", "   ", "\t"}) {
 			EmployeeSearchCriteria criteria = EmployeeSearchCriteria.builder()
 					.codes(Collections.singletonList("EMP-1")).tenantId(tenant).build();
 			CustomException e = assertThrows(CustomException.class,
@@ -130,11 +130,13 @@ class EmployeeValidatorTenantAccessTest {
 
 	@Test
 	void searchWithoutTenantIsRejectedForInternalCallToo() {
-		EmployeeSearchCriteria criteria = EmployeeSearchCriteria.builder()
-				.codes(Collections.singletonList("EMP-1")).build();
-		CustomException e = assertThrows(CustomException.class,
-				() -> validator.validateSearchRequest(RequestInfo.builder().build(), criteria));
-		assertEquals(ErrorConstants.HRMS_INVALID_SEARCH_TENANT_CODE, e.getCode());
+		for (String tenant : new String[] {null, "", "   "}) {
+			EmployeeSearchCriteria criteria = EmployeeSearchCriteria.builder()
+					.codes(Collections.singletonList("EMP-1")).tenantId(tenant).build();
+			CustomException e = assertThrows(CustomException.class,
+					() -> validator.validateSearchRequest(RequestInfo.builder().build(), criteria));
+			assertEquals(ErrorConstants.HRMS_INVALID_SEARCH_TENANT_CODE, e.getCode());
+		}
 	}
 
 	// ---- create ----
