@@ -2,6 +2,7 @@ package org.egov.pgr.service;
 
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.tracer.model.CustomException;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.producer.Producer;
@@ -142,6 +143,15 @@ public class PGRService {
      * @return
      */
     public Integer count(RequestInfo requestInfo, RequestSearchCriteria criteria) throws InvalidTenantIdException {
+        // Same ownership filter as search, without the pagination defaults
+        enrichmentService.scopeSearchCriteria(requestInfo, criteria);
+
+        if(criteria.isEmpty())
+            return 0;
+
+        if(criteria.getMobileNumber()!=null && CollectionUtils.isEmpty(criteria.getUserIds()))
+            return 0;
+
         criteria.setIsPlainSearch(false);
         Integer count = repository.getCount(criteria);
         return count;
@@ -150,6 +160,11 @@ public class PGRService {
 
     public List<ServiceWrapper> plainSearch(RequestInfo requestInfo, RequestSearchCriteria criteria) throws InvalidTenantIdException {
         validator.validatePlainSearch(criteria);
+
+        // Plain search is not filtered by owner, so it is not available to citizens
+        if(enrichmentService.isCitizen(requestInfo))
+            throw new CustomException("INVALID_SEARCH","Plain search is not allowed for the given user");
+
 
         criteria.setIsPlainSearch(true);
 
