@@ -179,6 +179,37 @@ class EmployeeValidatorTenantAccessTest {
 		verify(mdmsService).getMDMSData(any(RequestInfo.class), any(String.class));
 	}
 
+	private static Employee employeeWithRoleTenants(String tenantId, String... roleTenants) {
+		Employee employee = employee(tenantId, tenantId);
+		List<org.egov.hrms.model.Role> roles = new ArrayList<>();
+		for (String roleTenant : roleTenants)
+			roles.add(org.egov.hrms.model.Role.builder().code("HRMS_ADMIN").name("HRMS Admin").tenantId(roleTenant).build());
+		employee.getUser().setRoles(roles);
+		return employee;
+	}
+
+	@Test
+	void createRejectsRoleTenantNotCoveredByCaller() {
+		EmployeeRequest request = request(requestInfoWithRoleTenant("pb"), employeeWithRoleTenants("pb", "pb", "mz"));
+		assertDenied(() -> validator.validateCreateEmployee(request, new ArrayList<>()));
+		verifyNoInteractions(mdmsService, userService, hrmsUtils, restCallRepository, employeeService);
+	}
+
+	@Test
+	void updateRejectsRoleTenantNotCoveredByCaller() {
+		EmployeeRequest request = request(requestInfoWithRoleTenant("pb"), employeeWithRoleTenants("pb", "mz"));
+		assertDenied(() -> validator.validateUpdateEmployee(request));
+		verifyNoInteractions(mdmsService, userService, hrmsUtils, restCallRepository, employeeService);
+	}
+
+	@Test
+	void createAllowsRoleTenantsCoveredByCallerAndRolesWithoutTenant() {
+		when(propertiesManager.isAutoGeneratePassword()).thenReturn(true);
+		EmployeeRequest request = request(requestInfoWithRoleTenant("pb"), employeeWithRoleTenants("pb", "pb", "pb.amritsar", null));
+		assertDoesNotThrow(() -> validator.validateCreateEmployee(request, new ArrayList<>()));
+		verify(mdmsService).getMDMSData(any(RequestInfo.class), any(String.class));
+	}
+
 	@Test
 	void createDoesNotApplyRuleToMissingUserTenant() {
 		when(propertiesManager.isAutoGeneratePassword()).thenReturn(true);

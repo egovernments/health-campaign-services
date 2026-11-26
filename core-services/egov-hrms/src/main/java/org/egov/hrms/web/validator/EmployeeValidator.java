@@ -135,8 +135,15 @@ public class EmployeeValidator {
 	private void validateTenantAccess(RequestInfo requestInfo, List<Employee> employees) {
 		for (Employee employee : employees) {
 			TenantAccessUtil.validateTenantAccess(requestInfo, employee.getTenantId());
-			if (employee.getUser() != null)
+			if (employee.getUser() != null) {
 				TenantAccessUtil.validateTenantAccess(requestInfo, employee.getUser().getTenantId());
+				// Each role tenant is sent to egov-user as given, so it needs the same check
+				if (employee.getUser().getRoles() != null)
+					employee.getUser().getRoles().forEach(role -> {
+						if (role != null)
+							TenantAccessUtil.validateTenantAccess(requestInfo, role.getTenantId());
+					});
+			}
 		}
 	}
 
