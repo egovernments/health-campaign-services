@@ -48,6 +48,17 @@ public class ServiceRequestValidatorTest {
     }
 
     @Test
+    public void validateSearchRejectsBlankTenant() {
+        for (String tenant : new String[]{null, "", "  "}) {
+            RequestSearchCriteria criteria = RequestSearchCriteria.builder().tenantId(tenant).build();
+            CustomException direct = assertThrows(CustomException.class, () -> validator.validateTenantPresent(criteria));
+            assertEquals("INVALID_SEARCH", direct.getCode());
+            CustomException search = assertThrows(CustomException.class, () -> validator.validateSearch(employeeAt("pb"), criteria));
+            assertEquals("INVALID_SEARCH", search.getCode());
+        }
+    }
+
+    @Test
     public void validateSearchRejectsOtherTenant() {
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().tenantId("mz.city").build();
         assertTenantAccessRejected(() -> validator.validateSearch(employeeAt("pb"), criteria));

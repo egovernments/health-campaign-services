@@ -213,6 +213,9 @@ public class EmployeeValidator {
 	 * @param criteria
 	 */
 	public void validateSearchRequest(RequestInfo requestInfo, EmployeeSearchCriteria criteria) {
+		// Every employee search is scoped to one tenant; without a tenant the query has no tenant filter
+		if(StringUtils.isEmpty(criteria.getTenantId()))
+			throw new CustomException(ErrorConstants.HRMS_INVALID_SEARCH_TENANT_CODE, ErrorConstants.HRMS_INVALID_SEARCH_TENANT_MSG);
 		TenantAccessUtil.validateTenantAccess(requestInfo, criteria.getTenantId());
 		Map<String, String> errorMap = new HashMap<>();
 

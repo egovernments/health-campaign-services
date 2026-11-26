@@ -118,10 +118,23 @@ class EmployeeValidatorTenantAccessTest {
 	}
 
 	@Test
-	void searchDoesNotApplyRuleWhenTenantIsMissing() {
+	void searchWithoutTenantIsRejected() {
+		for (String tenant : new String[] {null, ""}) {
+			EmployeeSearchCriteria criteria = EmployeeSearchCriteria.builder()
+					.codes(Collections.singletonList("EMP-1")).tenantId(tenant).build();
+			CustomException e = assertThrows(CustomException.class,
+					() -> validator.validateSearchRequest(requestInfoWithRoleTenant("pb"), criteria));
+			assertEquals(ErrorConstants.HRMS_INVALID_SEARCH_TENANT_CODE, e.getCode());
+		}
+	}
+
+	@Test
+	void searchWithoutTenantIsRejectedForInternalCallToo() {
 		EmployeeSearchCriteria criteria = EmployeeSearchCriteria.builder()
 				.codes(Collections.singletonList("EMP-1")).build();
-		assertDoesNotThrow(() -> validator.validateSearchRequest(requestInfoWithRoleTenant("pb"), criteria));
+		CustomException e = assertThrows(CustomException.class,
+				() -> validator.validateSearchRequest(RequestInfo.builder().build(), criteria));
+		assertEquals(ErrorConstants.HRMS_INVALID_SEARCH_TENANT_CODE, e.getCode());
 	}
 
 	// ---- create ----

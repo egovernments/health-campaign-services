@@ -239,6 +239,7 @@ public class ServiceRequestValidator {
      */
     public void validateSearch(RequestInfo requestInfo, RequestSearchCriteria criteria){
 
+        validateTenantPresent(criteria);
         TenantAccessUtil.validateTenantAccess(requestInfo, criteria.getTenantId());
 
         /*
@@ -322,6 +323,17 @@ public class ServiceRequestValidator {
         if(!StringUtils.hasText(hierarchyType))
             throw new CustomException("INVALID_HIERARCHY_TYPE","HierarchyType is mandatory and cannot be null or empty");
 
+    }
+
+
+    /**
+     * Every complaint search and count is scoped to one tenant. Without a tenant the query has no tenant filter,
+     * so it could return complaints of other tenants.
+     * @param criteria
+     */
+    public void validateTenantPresent(RequestSearchCriteria criteria){
+        if(!StringUtils.hasText(criteria.getTenantId()))
+            throw new CustomException("INVALID_SEARCH","TenantId is mandatory search param");
     }
 
 

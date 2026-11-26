@@ -145,6 +145,7 @@ public class PGRService {
      * @return
      */
     public Integer count(RequestInfo requestInfo, RequestSearchCriteria criteria) throws InvalidTenantIdException {
+        validator.validateTenantPresent(criteria);
         TenantAccessUtil.validateTenantAccess(requestInfo, criteria.getTenantId());
         enrichmentService.restrictToOwnComplaints(requestInfo, criteria);
         criteria.setIsPlainSearch(false);

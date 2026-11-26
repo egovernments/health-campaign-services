@@ -231,6 +231,17 @@ public class PGRServiceTest {
     }
 
     @Test
+    public void countWithoutTenantIsRejectedBeforeQuery() throws Exception {
+        for (String tenant : new String[]{null, ""}) {
+            RequestSearchCriteria criteria = RequestSearchCriteria.builder().tenantId(tenant).build();
+            CustomException e = assertThrows(CustomException.class,
+                    () -> serviceWithRealValidator.count(requestInfoWithRoleAt("pb"), criteria));
+            assertEquals("INVALID_SEARCH", e.getCode());
+        }
+        Mockito.verify(repository, never()).getCount(any());
+    }
+
+    @Test
     public void countDoesNotCallValidateSearch() throws Exception {
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().tenantId("pb.amritsar").build();
         when(repository.getCount(criteria)).thenReturn(3);
