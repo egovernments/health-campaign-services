@@ -240,7 +240,7 @@ on:
         options:
           - PAT # paste a fine-grained token (default)
           - OAuth # Sign in with GitHub (via the shared broker Worker)
-        default: PAT
+        default: OAuth
 jobs:
   setup:
     uses: egovernments/DIGIT-DevOps/.github/workflows/reusable-setup.yaml@reusable-build-v1
