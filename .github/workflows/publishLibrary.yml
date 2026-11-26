@@ -1,0 +1,63 @@
+name: Publish Library
+run-name: Publish ${{ github.event.inputs.library }}
+
+# Libraries are jars published to Nexus, not container images. Their
+# Dockerfiles run `mvn deploy` in a build stage and end with `FROM scratch`;
+# BuildKit skips that unused stage, so the Build Pipeline pushes an empty image
+# and never reaches Nexus. This workflow runs Maven directly instead.
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      library:
+        description: 'Library to test and publish to Nexus'
+        required: true
+        type: choice
+        options:
+          - health-services-common
+          - health-services-models
+
+# One publish per library and ref at a time; Nexus releases reject redeploys.
+concurrency:
+  group: publish-library-${{ github.event.inputs.library }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Show version to publish
+        env:
+          LIB: ${{ github.event.inputs.library }}
+          LIB_DIR: health-services/libraries/${{ github.event.inputs.library }}
+        run: |
+          VERSION=$(mvn -B -q -f "$LIB_DIR/pom.xml" help:evaluate -Dexpression=project.version -DforceStdout)
+          echo "Publishing $LIB $VERSION"
+          echo "| Library | Version |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| $LIB | $VERSION |" >> "$GITHUB_STEP_SUMMARY"
+
+      # settings.xml maps server repo.digit.org to ${nexus.user}/${nexus.password};
+      # the pom's distributionManagement picks releases or snapshots by version.
+      - name: Test and deploy to Nexus
+        env:
+          LIB_DIR: health-services/libraries/${{ github.event.inputs.library }}
+          NEXUS_USER: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+        run: |
+          mvn -B -f "$LIB_DIR/pom.xml" -s "$LIB_DIR/settings.xml" \
+            test verify deploy \
+            -Dnexus.user="$NEXUS_USER" -Dnexus.password="$NEXUS_PASSWORD"
