@@ -58,4 +58,17 @@ class PfNonExistentEntityValidatorTest {
 
         assertEquals(0, errorDetailsMap.size());
     }
+
+    @Test
+    @DisplayName("should add to error details map if entity exists only in another tenant")
+    void shouldAddToErrorDetailsMapIfEntityBelongsToAnotherTenant() throws InvalidTenantIdException {
+        ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
+                .withOneProjectFacilityHavingIdAndTenantId("some-id", "some-tenant-id").withRequestInfo().build();
+        when(facilityRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
+                .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder().withId("some-id").withTenantId("other-tenant-id").build()));
+
+        Map<ProjectFacility, List<Error>> errorDetailsMap = pfNonExistentEntityValidator.validate(request);
+
+        assertEquals(1, errorDetailsMap.size());
+    }
 }

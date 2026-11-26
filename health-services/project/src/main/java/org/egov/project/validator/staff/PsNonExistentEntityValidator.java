@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
@@ -56,7 +57,10 @@ public class PsNonExistentEntityValidator implements Validator<ProjectStaffBulkR
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             try {
                 List<ProjectStaff> existingEntities = repository.findById(tenantId, entityIds, false,
-                        getIdFieldName(idMethod));
+                        getIdFieldName(idMethod)).stream()
+                        .filter(existing -> eMap.containsKey(existing.getId())
+                                && Objects.equals(existing.getTenantId(), eMap.get(existing.getId()).getTenantId()))
+                        .collect(Collectors.toList());
                 List<ProjectStaff> nonExistentEntities = checkNonExistentEntities(eMap,
                         existingEntities, idMethod);
                 nonExistentEntities.forEach(staff -> {
