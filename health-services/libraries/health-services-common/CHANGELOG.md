@@ -1,6 +1,9 @@
 # Change Logs
 
 All notable changes to this module will be documented in this file.
+## 1.1.9 - 2026-11-26
+- Upgraded `services-common` from 2.9.0-SNAPSHOT to 2.9.1-SNAPSHOT so `MultiStateInstanceUtil.replaceSchemaPlaceholder` validates the tenantId (each dot-separated part must match `^[a-zA-Z_][a-zA-Z0-9_]{0,62}$`) before using it as a schema name, closing SQL injection through `tenantId` in central-instance mode. An invalid tenantId now raises `InvalidTenantIdFormatException` (a `RuntimeException`) in both central and non-central mode.
+
 ## 1.1.8 - 2026-10-28
 - Upgraded `health-services-models` to 1.0.37-SNAPSHOT (adds `NEW_SETTLEMENT` user action enum).
 

@@ -9,13 +9,14 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.List;
 
-import org.egov.web.notification.push.config.PushProperties;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.web.notification.push.repository.rowmappers.DeviceTokenRowMapper;
 import org.egov.web.notification.push.web.contract.DeviceToken;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -33,8 +34,8 @@ class DeviceTokenRepositoryTest {
     @Mock
     private DeviceTokenRowMapper rowMapper;
 
-    @Mock
-    private PushProperties properties;
+    @Spy
+    private MultiStateInstanceUtil multiStateInstanceUtil = new MultiStateInstanceUtil(1, true, 0);
 
     @Test
     void fetchTokensByUserIds_validUserIds_returnsTokens() {
@@ -127,5 +128,55 @@ class DeviceTokenRepositoryTest {
         List<DeviceToken> result = repository.fetchTokensByFacilityId("fac-err", "ba");
 
         assertTrue(result.isEmpty());
+    }
+    @Test
+    void centralInstance_validTenantIds_resolveSchemaAsBefore() {
+        when(namedParameterJdbcTemplate.query(anyString(), any(Map.class), eq(rowMapper)))
+                .thenReturn(Collections.emptyList());
+
+        repository.fetchTokensByUserIds(List.of("user-1"), "ba");
+        repository.fetchTokensByUserIds(List.of("user-1"), "ba.city_a");
+
+        org.mockito.Mockito.verify(namedParameterJdbcTemplate, org.mockito.Mockito.times(2)).query(
+                org.mockito.ArgumentMatchers.contains("FROM ba.eg_push_device_tokens"), any(Map.class), eq(rowMapper));
+    }
+
+    @Test
+    void centralInstance_tenantIdWithSqlCharacters_isRejectedBeforeQuerying() {
+        org.egov.tracer.model.CustomException ex = assertThrows(org.egov.tracer.model.CustomException.class,
+                () -> repository.fetchTokensByUserIds(List.of("user-1"), "eg_push_device_tokens UNION SELECT 1--"));
+
+        assertEquals("INVALID_TENANT_ID", ex.getCode());
+        org.mockito.Mockito.verifyNoInteractions(namedParameterJdbcTemplate);
+    }
+
+    @Test
+    void centralInstance_dottedTenantIdWithBadSchemaPart_isRejected() {
+        org.egov.tracer.model.CustomException ex = assertThrows(org.egov.tracer.model.CustomException.class,
+                () -> repository.fetchTokensByFacilityId("fac-1", "ba;drop table x.city"));
+
+        assertEquals("INVALID_TENANT_ID", ex.getCode());
+        org.mockito.Mockito.verifyNoInteractions(namedParameterJdbcTemplate);
+    }
+
+    @Test
+    void missingTenantId_keepsExistingErrorCode() {
+        org.egov.tracer.model.CustomException ex = assertThrows(org.egov.tracer.model.CustomException.class,
+                () -> repository.fetchTokensByUserIds(List.of("user-1"), ""));
+
+        assertEquals("MISSING_TENANT_ID", ex.getCode());
+        org.mockito.Mockito.verifyNoInteractions(namedParameterJdbcTemplate);
+    }
+
+    @Test
+    void nonCentralInstance_usesDefaultSchemaAsBefore() {
+        org.springframework.test.util.ReflectionTestUtils.setField(repository, "multiStateInstanceUtil",
+                new MultiStateInstanceUtil(1, false, 0));
+        when(namedParameterJdbcTemplate.update(anyString(), any(Map.class))).thenReturn(1);
+
+        repository.deleteByDeviceTokens(List.of("tok1"), "ba");
+
+        org.mockito.Mockito.verify(namedParameterJdbcTemplate).update(
+                eq("DELETE FROM eg_push_device_tokens WHERE devicetoken IN (:deviceTokens)"), any(Map.class));
     }
 }
