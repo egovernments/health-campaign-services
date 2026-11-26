@@ -19,6 +19,11 @@ on:
         options:
           - health-services-common
           - health-services-models
+      dry_run:
+        description: 'Build and test only (mvn verify); do not deploy to Nexus'
+        required: false
+        type: boolean
+        default: false
 
 # One publish per library and ref at a time; Nexus releases reject redeploys.
 concurrency:
@@ -55,12 +60,15 @@ jobs:
 
       # settings.xml maps server repo.digit.org to ${nexus.user}/${nexus.password};
       # the pom's distributionManagement picks releases or snapshots by version.
-      - name: Test and deploy to Nexus
+      - name: Test and deploy to Nexus (verify only on dry run)
         env:
           LIB_DIR: health-services/libraries/${{ github.event.inputs.library }}
           NEXUS_USER: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
+          GOALS="test verify deploy"
+          [ "$DRY_RUN" = "true" ] && GOALS="test verify"
           mvn -B -f "$LIB_DIR/pom.xml" -s "$LIB_DIR/settings.xml" \
-            test verify deploy \
+            $GOALS \
             -Dnexus.user="$NEXUS_USER" -Dnexus.password="$NEXUS_PASSWORD"
