@@ -2,6 +2,7 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
@@ -261,22 +262,25 @@ public class ProjectTaskTransformationService {
         }
         String scanResource = additionalDetails.get(scanResourceKey).asText();
         String manualIdentifier = transformerProperties.getScanResourceManualIdentifier();
-        int qrScans = 0;
-        int manualScans = 0;
+        ArrayNode qrScanCodes = additionalDetails.arrayNode();
+        ArrayNode manualScanCodes = additionalDetails.arrayNode();
         if (StringUtils.isNotBlank(scanResource)) {
             for (String scan : scanResource.split(Pattern.quote(transformerProperties.getScanResourceDelimiter()))) {
                 if (StringUtils.isBlank(scan)) {
                     continue;
                 }
-                if (StringUtils.containsIgnoreCase(scan, manualIdentifier)) {
-                    manualScans++;
+                String code = scan.trim();
+                if (StringUtils.containsIgnoreCase(code, manualIdentifier)) {
+                    manualScanCodes.add(code);
                 } else {
-                    qrScans++;
+                    qrScanCodes.add(code);
                 }
             }
         }
-        additionalDetails.put(QR_SCANS, qrScans);
-        additionalDetails.put(MANUAL_SCANS, manualScans);
+        additionalDetails.put(QR_SCANS, qrScanCodes.size());
+        additionalDetails.put(MANUAL_SCANS, manualScanCodes.size());
+        additionalDetails.set(QR_SCAN_CODES, qrScanCodes);
+        additionalDetails.set(MANUAL_SCAN_CODES, manualScanCodes);
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app

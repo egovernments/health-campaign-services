@@ -87,6 +87,8 @@ public interface Constants {
     String REQUIRED_BEDNETS = "requiredBednets";
     String QR_SCANS = "qrScans";
     String MANUAL_SCANS = "manualScans";
+    String QR_SCAN_CODES = "qrScanCodesList";
+    String MANUAL_SCAN_CODES = "manualScanCodesList";
     String CLOSED_HOUSEHOLD ="CLOSED_HOUSEHOLD";
     String REASON_OF_REFUSAL = "reasonOfRefusal";
     String NO_OF_ROOMS= "noOfRooms";
