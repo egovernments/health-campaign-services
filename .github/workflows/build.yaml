@@ -14,8 +14,7 @@ on:
         required: true
         type: choice
         options:
-          - health-services-common
-          - health-services-models
+          # Libraries (health-services-common/-models) publish via publishLibrary.yml
           - fhiradapter
           - product-17
           - product
