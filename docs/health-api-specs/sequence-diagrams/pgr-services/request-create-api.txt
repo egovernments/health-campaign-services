@@ -1,0 +1,195 @@
+@startuml
+title PGR Services - Request Create
+!theme vibrant
+participant Client as c
+participant PGRService as s
+participant MDMSService as mdms
+participant HRMSService as hrms
+participant UserService as us
+participant IdGenService as idg
+participant WorkflowService as wf
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /pgr-services/v2/request/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, service, service.tenantId, serviceCode,\nhierarchyType, source, address, address.locality.code not null;\nrating 0..5; additionalDetail <= 600 chars; @CustomSafeHtml on strings)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group mDMSCall
+    s -> mdms: /egov-mdms-service/v1/_search\n(tenantId = service.tenantId, module RAINMAKER-PGR,\nmaster ServiceDefs, filter $.[?(@.active==true)])
+    activate mdms
+    mdms -> s: MdmsRes
+    deactivate mdms
+    note right
+        ServiceRequestRepository.fetchResult swallows
+        non-4xx errors and returns null (later fails as JSONPATH_ERROR)
+    end note
+end
+
+group validateCreate
+    s -> s: validateUserData (RequestInfo.userInfo.type is CITIZEN,\nor EMPLOYEE when enable.usertype.employee=true)\nservice.user must be present with name and mobileNumber
+    note right
+        Errors are only collected in errorMap here (INVALID_REQUEST)
+        and thrown at the end of validateCreate,
+        after all other checks have passed
+    end note
+    s -> s: validateSource (allowed.source = whatsapp,web,mobile,RB Bot)
+    alt source not allowed
+        s -> c: HttpStatus: 400 INVALID_SOURCE
+    end
+    s -> s: validateHierarchyType (must have text)
+    alt hierarchyType blank
+        s -> c: HttpStatus: 400 INVALID_HIERARCHY_TYPE
+    end
+    s -> s: validateMDMS: ServiceDefs[serviceCode == service.serviceCode]
+    alt MDMS response cannot be parsed
+        s -> c: HttpStatus: 400 JSONPATH_ERROR
+    else serviceCode not in MDMS
+        s -> c: HttpStatus: 400 INVALID_SERVICECODE
+    end
+    opt workflow.assignes not empty (validateDepartment)
+        s -> hrms: /egov-hrms/employees/_search\n?uuids=<workflow.hrmsAssignes>&tenantId
+        activate hrms
+        hrms -> s: Employees
+        deactivate hrms
+        alt HRMS response cannot be parsed
+            s -> c: HttpStatus: 400 PARSING_ERROR
+        else no department found
+            s -> c: HttpStatus: 400 DEPARTMENT_NOT_FOUND
+        end
+        s -> s: Read ServiceDefs[serviceCode].department from MDMS
+        alt MDMS department cannot be parsed / missing
+            s -> c: HttpStatus: 400 JSONPATH_ERROR / PARSING_ERROR
+        else MDMS department not in employee departments
+            s -> c: HttpStatus: 400 INVALID_ASSIGNMENT
+        end
+    end
+    alt user data invalid (errorMap not empty)
+        s -> c: HttpStatus: 400 INVALID_REQUEST
+    end
+end
+
+group enrichCreateRequest
+    opt userInfo.type is CITIZEN or EMPLOYEE
+        s -> s: service.accountId = RequestInfo.userInfo.uuid
+    end
+    alt accountId present (callUserService -> enrichUser)
+        s -> us: /user/_search\n(uuid = accountId, tenantId = state level,\nuserType = service.user.type, active = true)
+        activate us
+        us -> s: User
+        deactivate us
+        alt no user found
+            s -> c: HttpStatus: 400 INVALID_ACCOUNTID
+        end
+        s -> s: service.user = user from search
+    else accountId empty and service.user present (upsertUser)
+        s -> us: /user/_search (userName = user.mobileNumber,\ntenantId = state level, userType, active = true)
+        activate us
+        us -> s: Users
+        deactivate us
+        alt user found and name differs
+            s -> us: /user/users/_updatenovalidate (name, active = true)
+            activate us
+            us -> s: User
+            deactivate us
+        else user not found
+            s -> us: /user/users/_createnovalidate\n(role CITIZEN, userName = mobileNumber, state tenant, active)
+            activate us
+            us -> s: User
+            deactivate us
+        end
+        s -> s: service.accountId = user uuid
+    end
+    s -> s: service.id = UUID, address.id = UUID,\naddress.tenantId = service.tenantId, active = true,\nids for workflow.verificationDocuments
+    note right
+        auditDetails is NOT enriched on create
+        (code commented out); the value sent by
+        the client is persisted as-is
+    end note
+    s -> idg: /egov-idgen/id/_generate\n(idName pgr.servicerequestid,\nformat PB-PGR-[cy:yyyy-MM-dd]-[SEQ_EG_PGR_ID])
+    activate idg
+    alt idgen 4xx
+        idg -> s: Error
+        s -> c: HttpStatus: 400 { idgen Errors }
+    else
+        idg -> s: IdResponses
+        deactivate idg
+    end
+    alt no ids returned
+        s -> c: HttpStatus: 400 IDGEN ERROR
+    end
+    s -> s: service.serviceRequestId = generated id
+end
+
+group updateWorkflowStatus
+    s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?tenantId&businessServices=PGR
+    activate wf
+    wf -> s: BusinessServices
+    deactivate wf
+    alt response cannot be parsed
+        s -> c: HttpStatus: 400 PARSING ERROR
+    else no business service
+        s -> c: HttpStatus: 400 BUSINESSSERVICE_NOT_FOUND
+    end
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(businessId = serviceRequestId, action, moduleName PGR,\nbusinessService, documents, comment, assignes)
+    activate wf
+    alt workflow transition fails (4xx)
+        wf -> s: Error
+        s -> c: HttpStatus: 400 { workflow Errors }
+    else success
+        wf -> s: ProcessInstance
+        deactivate wf
+        s -> s: service.applicationStatus = state.applicationStatus
+    end
+end
+
+s -> k: ServiceRequest /save-pgr-request
+activate k
+s -> k: ServiceRequest /transformer-save-pgr-service
+s -> c: HttpStatus: 200 ServiceResponse (ServiceWrappers[service, workflow])
+deactivate s
+
+note over k
+    Topics are prefixed with the state schema when
+    central instance is enabled (MultiStateInstanceUtil)
+end note
+
+group async
+    prs -> k: Consume /save-pgr-request
+    activate prs
+    prs -> db: INSERT eg_pgr_service_v2 (id, tenantid, servicecode,\nservicerequestid, description, accountid, additionaldetails,\napplicationstatus, source, audit, selfComplaint)
+    activate db
+    deactivate db
+    prs -> db: INSERT eg_pgr_address_v2 (address, locality.code,\nlatitude, longitude, audit)
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /save-pgr-request
+    activate idx
+    idx -> idx: Enrich via boundary-service relationships,\nworkflow process search, mdms-v2 (department, slaHours, tenant)
+    idx -> el: Store /pgr-services (id = serviceRequestId)
+    activate el
+    deactivate el
+    deactivate idx
+    s -> k: Consume /save-pgr-request (NotificationConsumer)
+    note right
+        See kafka-consumers.txt
+    end note
+end
+deactivate k
+
+note over prs
+    The health-config persister INSERT does not include
+    hierarchytype, so the mandatory hierarchyType is never stored.
+    No indexer config exists for /transformer-save-pgr-service
+    (indexer listens on transformer-save-pgr-request)
+end note
+
+@enduml

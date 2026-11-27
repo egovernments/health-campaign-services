@@ -1,0 +1,110 @@
+@startuml
+title Health Notification - Notification Scheduler (Cron)
+!theme vibrant
+participant Scheduler as cron
+participant HealthNotificationService as s
+participant InMemoryCache as mc
+participant EncService as enc
+participant LocalizationService as ls
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+note over cron, s
+    Bean exists only when notification.scheduler.enabled = true.
+    @Scheduled(cron = notification.scheduler.cron, zone = notification.timezone)
+    properties: "0 */2 * * * *" (every 2 minutes), Asia/Kolkata; code default "0 0 8 * * *", UTC
+end note
+
+cron -> s: processScheduledNotifications()
+activate s
+s -> s: today = LocalDate.now(notification.timezone)\ntenantId = state.level.tenant.id, batchSize 100, maxFetch 10000
+
+s -> db: SELECT * FROM <schema>.scheduled_notification\nWHERE status = 'PENDING' AND scheduledAt = :today AND isDeleted = false\nORDER BY scheduledAt ASC LIMIT :maxFetch
+activate db
+db -> s: Due notifications (mobileNumber / contextData encrypted)
+deactivate db
+note right
+    Equality on scheduledAt: rows whose date has passed
+    (missed run / downtime / > maxFetch backlog) are never
+    picked up again. tenantId only selects the schema.
+end note
+
+alt none due
+    s -> s: Log, return
+else notifications found
+    group markBatchInProgress
+        s -> s: status IN_PROGRESS, rowVersion + 1, lastModified* = SYSTEM
+        s -> k: ScheduledNotification[] /update-scheduled-notification-topic-health\n(grouped per tenant on a central instance)
+        activate k
+    end
+
+    group decrypt
+        loop for each notification, each cipher-text field (mobileNumber, contextData)
+            s -> enc: POST /egov-enc-service/crypto/v1/_decrypt
+            activate enc
+            enc -> s: Plain value
+            deactivate enc
+        end
+        note right
+            A per-notification failure keeps it encrypted
+            (dispatch then fails: contextData is not a Map)
+        end note
+    end
+
+    loop for each batch of batchSize (a failed batch does not stop the run)
+        group dispatchBatch
+            loop for each notification
+                s -> s: contextData must be a non-empty Map,\nlocale = contextData.locale (default en_NG)
+                s -> mc: get "<tenantId>_<locale>_<templateCode>"
+                opt cache miss
+                    s -> ls: POST /localization/messages/v1/_search\n?locale&tenantId&module=health-notification&codes=<templateCode>
+                    activate ls
+                    ls -> s: message
+                    deactivate ls
+                    s -> mc: put message
+                end
+                s -> s: Replace {placeholders} (epoch values formatted yyyy-MM-dd)
+                alt success
+                    s -> k: {notificationId, tenantId, mobileNumber, message}\n/save-final-sms-message
+                else any exception (LOCALIZATION_MESSAGE_NOT_FOUND, missing mobileNumber, ...)
+                    s -> s: markFailed: status FAILED, attempts + 1, lastAttemptAt,\nerrorMessage (max 500 chars), rowVersion + 1
+                    s -> k: [ScheduledNotification] /update-scheduled-notification-topic-health
+                end
+            end
+        end
+    end
+end
+alt any unexpected exception (e.g. DB / decrypt failure)
+    s -> s: Log "Scheduler failed"
+    note right
+        Notifications already marked IN_PROGRESS stay
+        IN_PROGRESS: they are never retried
+    end note
+end
+deactivate s
+
+group async
+    s -> k: Consume /save-final-sms-message
+    note right
+        Marks the notification SENT
+        (see kafka-consumers.txt)
+    end note
+    prs -> k: Consume /update-scheduled-notification-topic-health
+    activate prs
+    prs -> db: UPDATE health.scheduled_notification SET status, attempts,\nlastAttemptAt, errorMessage, isDeleted, rowVersion, lastModified*\nWHERE id AND tenantId
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /update-scheduled-notification-topic-health
+    activate idx
+    idx -> el: Store ScheduledNotification /scheduled-notification-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+@enduml

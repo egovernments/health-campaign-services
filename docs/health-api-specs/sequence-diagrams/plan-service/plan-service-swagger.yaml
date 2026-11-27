@@ -1,0 +1,1245 @@
+openapi: 3.0.3
+info:
+  title: Plan Service API
+  description: |
+    Microplanning plan service. Manages plan configurations (microplans), plan
+    estimations (plans), plan-employee assignments and plan-facility linkages.
+    Source: health-services/plan-service (Java / Spring Boot), context path `/plan-service`.
+
+    Create / update calls are asynchronous: records are pushed to Kafka and written
+    by egov-persister (HTTP 202). Plan bulk update writes to the DB synchronously (HTTP 201).
+
+    All errors (bean validation, business errors and unhandled exceptions such as
+    NullPointerException) are returned by the DIGIT tracer as HTTP 400 with an
+    `Errors` array.
+  version: 1.0.0
+servers:
+  - url: https://{host}/plan-service
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Plan Configuration
+  - name: Plan
+  - name: Plan Employee Assignment
+  - name: Plan Facility
+
+paths:
+  /config/_create:
+    post:
+      tags: [Plan Configuration]
+      summary: Create a plan configuration (microplan)
+      description: |
+        Sets `active = true` for child entries without id, then validates against MDMS
+        (hcm-microplanning masters, VehicleDetails), project-factory (campaignId),
+        duplicates (same tenantId + campaignId + name ILIKE '%name%'), assumption keys,
+        template identifiers, operations (only when `workflow.action == INITIATE`),
+        naming regex (MicroplanNamingRegex), userInfo and vehicleIds.
+        Status is always set to `DRAFT`; the workflow is not invoked on create.
+        Published to `plan-config-create-topic`.
+      operationId: planConfigCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanConfigurationRequest'
+            example:
+              RequestInfo:
+                apiId: plan-service
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              PlanConfiguration:
+                tenantId: mz
+                name: Microplan_SMC_2025
+                campaignId: 8f2bba34-campaign-id
+                files:
+                  - filestoreId: f5c1a1e2-filestore-id
+                    inputFileType: Excel
+                    templateIdentifier: Population
+                    active: true
+                assumptions:
+                  - key: HOUSEHOLD_SIZE
+                    value: 4.5
+                    source: MDMS
+                    category: General
+                    active: true
+                operations: []
+                resourceMapping: []
+                additionalDetails:
+                  campaignType: SMC
+                  DistributionProcess: Door-to-Door
+                  RegistrationProcess: Separately
+                  resourceDistributionStrategyCode: HOUSE_TO_HOUSE
+                  isRegistrationAndDistributionHappeningTogetherOrSeparately: separately
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanConfigurationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /config/_update:
+    post:
+      tags: [Plan Configuration]
+      summary: Update a plan configuration
+      description: |
+        Requires an existing `id`. Same MDMS / campaign / assumption / template /
+        operation / name / vehicle validations as create (no duplicate-name check).
+        Generates ids for new child entries, sets operation `executionOrder` and
+        runs workflow-action checks:
+        `APPROVE_CENSUS_DATA` (all census VALIDATED), `FINALIZE_CATCHMENT_MAPPING`
+        (all census have a facility), `APPROVE_ESTIMATIONS` (all plans VALIDATED).
+        If `workflow` is present the `PLAN_CONFIGURATION` workflow transition is called
+        and status is taken from it. Published to `plan-config-update-topic`;
+        the persister physically deletes child rows sent with `active = false`.
+      operationId: planConfigUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanConfigurationRequest'
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanConfigurationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /config/_search:
+    post:
+      tags: [Plan Configuration]
+      summary: Search plan configurations
+      description: |
+        Paginated (default limit 10, offset 0), ordered by lastModifiedTime DESC.
+        Only active files, assumptions, operations and resource mappings are returned.
+      operationId: planConfigSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanConfigurationSearchRequest'
+            example:
+              RequestInfo:
+                apiId: plan-service
+                msgId: "1695889012604|en_MZ"
+              PlanConfigurationSearchCriteria:
+                tenantId: mz
+                campaignId: 8f2bba34-campaign-id
+                status: [DRAFT]
+                limit: 10
+                offset: 0
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanConfigurationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /plan/_create:
+    post:
+      tags: [Plan]
+      summary: Create a plan (resource estimation for a locality)
+      description: |
+        Validates MDMS (Metric, Uom), campaign (project-factory), locality (boundary-service
+        relationship search), activities / resources / targets rules, plan configuration
+        existence, userInfo and the caller's plan-employee assignment
+        (ROOT_PLAN_ESTIMATION_APPROVER / PLAN_ESTIMATION_APPROVER) and jurisdiction.
+        Runs the `PLAN_ESTIMATION` workflow with auto-assignment when `workflow` is present.
+        Published to `save-plan`.
+
+        Note: the boundary ancestral path is only enriched for plans created through the
+        Kafka topic `resource-microplan-create-topic`; via this API it stays null and the
+        jurisdiction check fails with an unhandled NullPointerException (HTTP 400).
+      operationId: planCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /plan/_update:
+    post:
+      tags: [Plan]
+      summary: Update a plan
+      description: |
+        Requires an existing `id` (boundary ancestral path is copied from the DB).
+        Same validations as create plus uniqueness of activity, resource and target ids
+        (new entries without id count as `null`, so only one new entry of each kind can be
+        added per call). Enriches jurisdictionMapping from the boundary hierarchy,
+        runs the `PLAN_ESTIMATION` workflow if present and publishes to `update-plan`.
+        The persister updates status, assignee, additionalDetails and audit fields of the
+        plan and upserts child rows.
+      operationId: planUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /plan/bulk/_update:
+    post:
+      tags: [Plan]
+      summary: Bulk workflow transition of plans
+      description: |
+        All plans must have unique ids, the same tenantId and planConfigurationId,
+        a workflow, and the same status and workflow action (BULK_UPDATE_ERROR otherwise).
+        The caller must have a plan estimation approver assignment whose jurisdiction
+        covers every plan. One workflow transition call is made for all plans;
+        status, assignee and audit fields are updated in the DB synchronously and the
+        request is published to `bulk-update-plan` (indexer only).
+      operationId: planBulkUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkPlanRequest'
+      responses:
+        '201':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /plan/_search:
+    post:
+      tags: [Plan]
+      summary: Search plans
+      description: |
+        Paginated (default limit 10, max 100), ordered by lastModifiedTime DESC.
+        Returns TotalCount and StatusCount (every `PLAN_ESTIMATION` workflow state present,
+        0 if no records). StatusCount uses only tenantId, campaignId,
+        planConfigurationId and jurisdiction from the criteria.
+      operationId: planSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanSearchRequest'
+            example:
+              RequestInfo:
+                apiId: plan-service
+                msgId: "1695889012604|en_MZ"
+              PlanSearchCriteria:
+                tenantId: mz
+                planConfigurationId: 0f4c7c0e-plan-config-id
+                jurisdiction: [MZ_PROVINCE_01]
+                limit: 10
+                offset: 0
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /employee/_create:
+    post:
+      tags: [Plan Employee Assignment]
+      summary: Assign an employee to a plan configuration
+      description: |
+        Validates the plan configuration, duplicates (same tenant, config, employee, role,
+        active), the employee and role against egov-user (`/user/_search`), conflicting
+        ROOT / non-ROOT role pairs (`role.map`), and the jurisdiction against the campaign
+        boundaries and the microplan hierarchy (HCM-ADMIN-CONSOLE.HierarchySchema):
+        ROOT roles must have exactly one highest-hierarchy jurisdiction; other roles must
+        not be at the lowest or highest hierarchy. Sets `active = true` and
+        `planConfigurationName`. Published to `plan-employee-assignment-create-topic`.
+      operationId: planEmployeeAssignmentCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanEmployeeAssignmentRequest'
+            example:
+              RequestInfo:
+                apiId: plan-service
+                msgId: "1695889012604|en_MZ"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              PlanEmployeeAssignment:
+                tenantId: mz
+                planConfigurationId: 0f4c7c0e-plan-config-id
+                employeeId: 6a9a8f1c-employee-uuid
+                role: POPULATION_DATA_APPROVER
+                hierarchyLevel: PROVINCE
+                jurisdiction: [MZ_PROVINCE_01]
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanEmployeeAssignmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /employee/_update:
+    post:
+      tags: [Plan Employee Assignment]
+      summary: Update a plan employee assignment
+      description: |
+        Requires `id`; the assignment must exist with the same tenantId, planConfigurationId,
+        employeeId and role and be currently active. Campaign / jurisdiction validations run
+        only when `active` is true in the request. The persister updates jurisdiction,
+        hierarchyLevel, additionalDetails, active and audit fields only.
+        Published to `plan-employee-assignment-update-topic`.
+      operationId: planEmployeeAssignmentUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanEmployeeAssignmentRequest'
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanEmployeeAssignmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /employee/_search:
+    post:
+      tags: [Plan Employee Assignment]
+      summary: Search plan employee assignments
+      description: |
+        Paginated (default limit 10, max 100). `active` defaults to true.
+        With `filterUniqueByPlanConfig = true` only one assignment per plan configuration
+        is returned (latest plan configuration first). `planConfigurationStatus` works only
+        together with `filterUniqueByPlanConfig = true` (otherwise the SQL fails).
+      operationId: planEmployeeAssignmentSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanEmployeeAssignmentSearchRequest'
+            example:
+              RequestInfo:
+                apiId: plan-service
+                msgId: "1695889012604|en_MZ"
+              PlanEmployeeAssignmentSearchCriteria:
+                tenantId: mz
+                employeeId: [6a9a8f1c-employee-uuid]
+                filterUniqueByPlanConfig: true
+                planConfigurationStatus: [DRAFT]
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanEmployeeAssignmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /plan/facility/_create:
+    post:
+      tags: [Plan Facility]
+      summary: Link a facility to a plan configuration
+      description: |
+        Rejects an existing linkage for the same planConfigurationId + facilityId,
+        validates the plan configuration, the facility (facility service
+        `/facility/v1/_search`), the residing boundary (any campaign boundary) and service
+        boundaries (unique, lowest microplan hierarchy). Enriches facilityName,
+        additionalDetails (facilityUsage, capacity, facilityStatus, facilityType,
+        isPermanent, servingPopulation = 0), boundaryAncestralPath and jurisdictionMapping.
+        Published to `save-plan-facility`.
+      operationId: planFacilityCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanFacilityRequest'
+            example:
+              RequestInfo:
+                apiId: plan-service
+                msgId: "1695889012604|en_MZ"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              PlanFacility:
+                tenantId: mz
+                planConfigurationId: 0f4c7c0e-plan-config-id
+                facilityId: F-2025-01-01-000123
+                residingBoundary: MZ_LOCALITY_01
+                serviceBoundaries: [MZ_VILLAGE_01, MZ_VILLAGE_02]
+                active: true
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanFacilityResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /plan/facility/_update:
+    post:
+      tags: [Plan Facility]
+      summary: Update a plan facility linkage (catchment mapping)
+      description: |
+        Requires an existing `id`. Re-validates boundaries against the campaign, then
+        recomputes `additionalDetails.servingPopulation` by adding (boundaries added) or
+        subtracting (boundaries removed) the confirmed target population of the changed
+        boundaries from census-service. Published to `update-plan-facility`, which is also
+        consumed by census-service to set / clear the facility on census records.
+      operationId: planFacilityUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanFacilityRequest'
+      responses:
+        '202':
+          description: Accepted for persistence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanFacilityResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /plan/facility/_search:
+    post:
+      tags: [Plan Facility]
+      summary: Search plan facility linkages
+      description: |
+        Paginated (default limit 10, max 100), ordered by lastModifiedTime DESC.
+        `facilityStatus` and `facilityType` are matched inside additionalDetails (jsonb @>).
+        Inactive linkages are returned as well.
+      operationId: planFacilitySearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanFacilitySearchRequest'
+            example:
+              RequestInfo:
+                apiId: plan-service
+                msgId: "1695889012604|en_MZ"
+              PlanFacilitySearchCriteria:
+                tenantId: mz
+                planConfigurationId: 0f4c7c0e-plan-config-id
+                facilityType: Warehouse
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanFacilityResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: Validation, business or unhandled error (always HTTP 400 via DIGIT tracer)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: PLAN_CONFIGURATION_ALREADY_EXISTS
+                message: Plan Configuration for the provided name and campaign id already exists
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      description: Required for create / update operations (USERINFO_MISSING)
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status: { type: string, example: successful }
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    Workflow:
+      type: object
+      properties:
+        action:
+          type: string
+          description: |
+            Plan configuration (PLAN_CONFIGURATION): INITIATE also triggers the
+            "setup completed" validations; APPROVE_CENSUS_DATA, FINALIZE_CATCHMENT_MAPPING
+            and APPROVE_ESTIMATIONS have extra pre-checks.
+            Plan (PLAN_ESTIMATION): INITIATE assigns the employee at the lowest ancestral
+            boundary, EDIT_AND_SEND_FOR_APPROVAL / APPROVE assign a higher-level employee,
+            SEND_BACK_FOR_CORRECTION assigns the last modifier.
+          example: INITIATE
+        comments: { type: string }
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        assignes:
+          type: array
+          items: { type: string }
+          description: For plans, overwritten by auto-assignment when an assignee is found
+
+    Document:
+      type: object
+      properties:
+        id: { type: string }
+        documentType: { type: string }
+        fileStoreId: { type: string }
+        documentUid: { type: string }
+        additionalDetails: { type: object }
+
+    # ---------------- Plan configuration ----------------
+    File:
+      type: object
+      required: [filestoreId, inputFileType, templateIdentifier, active]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated when absent; entries without id are forced active on create
+        filestoreId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Must not contain only punctuation
+        inputFileType:
+          type: string
+          enum: [Excel, Shapefile, GeoJSON]
+        templateIdentifier:
+          type: string
+          minLength: 2
+          maxLength: 128
+          description: Must exist in MDMS hcm-microplanning.UploadConfiguration
+        active: { type: boolean, default: true }
+
+    Assumption:
+      type: object
+      required: [key, value, source, category, active]
+      properties:
+        id: { type: string, minLength: 2, maxLength: 64 }
+        key:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Unique among active assumptions; MDMS-sourced keys must exist in HypothesisAssumptions
+        value:
+          type: number
+          minimum: 0.01
+          maximum: 1000.00
+          description: Up to 4 integer digits and 2 decimals
+        source:
+          $ref: '#/components/schemas/Source'
+        category: { type: string, minLength: 2, maxLength: 64 }
+        active: { type: boolean, default: true }
+
+    Operation:
+      type: object
+      required: [input, operator, assumptionValue, output, showOnEstimationDashboard, source, category, active]
+      properties:
+        id: { type: string, minLength: 2, maxLength: 64 }
+        input: { type: string, minLength: 1, maxLength: 256 }
+        operator:
+          type: string
+          enum: ['+', '-', '/', '*', '%', '**']
+        assumptionValue: { type: string, minLength: 1, maxLength: 256 }
+        output: { type: string, minLength: 1, maxLength: 256 }
+        showOnEstimationDashboard: { type: boolean, default: true }
+        source:
+          $ref: '#/components/schemas/Source'
+        category: { type: string, minLength: 2, maxLength: 64 }
+        executionOrder:
+          type: integer
+          description: Set by the service on update (1..n over active operations)
+        active: { type: boolean, default: true }
+
+    ResourceMapping:
+      type: object
+      required: [filestoreId, mappedFrom, mappedTo, active]
+      properties:
+        id: { type: string }
+        filestoreId: { type: string, minLength: 1, maxLength: 128 }
+        mappedFrom: { type: string, minLength: 2, maxLength: 256 }
+        mappedTo: { type: string, minLength: 2, maxLength: 256 }
+        active:
+          type: boolean
+          default: true
+          description: Forced to false when the file with the same filestoreId is inactive
+
+    Source:
+      type: string
+      enum: [MDMS, CUSTOM, VEHICLE]
+
+    PlanConfiguration:
+      type: object
+      required: [tenantId, name, campaignId]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Generated on create; required on update
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        name:
+          type: string
+          minLength: 3
+          maxLength: 128
+          description: Must match MDMS MicroplanNamingRegex
+        campaignId:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Project-factory campaign id; must not contain only punctuation
+        status:
+          type: string
+          description: DRAFT on create, then the PLAN_CONFIGURATION workflow state
+        files:
+          type: array
+          items: { $ref: '#/components/schemas/File' }
+        assumptions:
+          type: array
+          items: { $ref: '#/components/schemas/Assumption' }
+        operations:
+          type: array
+          items: { $ref: '#/components/schemas/Operation' }
+        resourceMapping:
+          type: array
+          items: { $ref: '#/components/schemas/ResourceMapping' }
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        additionalDetails:
+          type: object
+          additionalProperties: true
+          description: |
+            Required when assumptions are sent. Keys used by the service: campaignType,
+            DistributionProcess, RegistrationProcess, resourceDistributionStrategyCode,
+            isRegistrationAndDistributionHappeningTogetherOrSeparately,
+            vehicleIds (validated against MDMS hcm-microplanning.VehicleDetails)
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+
+    PlanConfigurationRequest:
+      type: object
+      required: [PlanConfiguration]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        PlanConfiguration:
+          $ref: '#/components/schemas/PlanConfiguration'
+
+    PlanConfigurationSearchCriteria:
+      type: object
+      required: [tenantId]
+      properties:
+        tenantId: { type: string, minLength: 2, maxLength: 256 }
+        id: { type: string }
+        ids:
+          type: array
+          items: { type: string }
+        name:
+          type: string
+          description: Partial, case-insensitive match (ILIKE)
+        campaignId: { type: string }
+        status:
+          type: array
+          items: { type: string }
+        userUuid:
+          type: string
+          description: Matches createdBy
+        offset: { type: integer, minimum: 0, default: 0 }
+        limit: { type: integer, minimum: 1, maximum: 50, default: 10 }
+
+    PlanConfigurationSearchRequest:
+      type: object
+      required: [PlanConfigurationSearchCriteria]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        PlanConfigurationSearchCriteria:
+          $ref: '#/components/schemas/PlanConfigurationSearchCriteria'
+
+    PlanConfigurationResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        PlanConfiguration:
+          type: array
+          items: { $ref: '#/components/schemas/PlanConfiguration' }
+        TotalCount:
+          type: integer
+          description: Search only
+
+    # ---------------- Plan ----------------
+    Condition:
+      type: object
+      required: [entity, entityProperty, expression]
+      properties:
+        id: { type: string }
+        entity: { type: string, minLength: 2, maxLength: 64 }
+        entityProperty: { type: string, minLength: 2, maxLength: 64 }
+        expression: { type: string, minLength: 3, maxLength: 2048 }
+
+    Activity:
+      type: object
+      required: [code]
+      properties:
+        id: { type: string }
+        code:
+          type: string
+          minLength: 2
+          maxLength: 128
+          description: Unique within the plan
+        description: { type: string, maxLength: 2048 }
+        plannedStartDate: { type: integer, format: int64 }
+        plannedEndDate:
+          type: integer
+          format: int64
+          description: Must be >= plannedStartDate
+        dependencies:
+          type: array
+          items: { type: string }
+          description: Activity codes of this plan; stored as [""] when empty
+        conditions:
+          type: array
+          items: { $ref: '#/components/schemas/Condition' }
+
+    Resource:
+      type: object
+      required: [resourceType]
+      properties:
+        id: { type: string }
+        resourceType: { type: string, minLength: 1, maxLength: 256 }
+        estimatedNumber: { type: number }
+        activityCode: { type: string, minLength: 2, maxLength: 128 }
+
+    MetricDetail:
+      type: object
+      required: [value, comparator, unit]
+      properties:
+        value:
+          type: number
+          minimum: 0.01
+          maximum: 999.99
+          description: Up to 3 integer digits and 2 decimals
+        comparator:
+          type: string
+          enum: ['>', '<', '>=', '<=', '=']
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Must exist in MDMS hcm-microplanning.Uom (uomCode)
+
+    Target:
+      type: object
+      properties:
+        id: { type: string }
+        metric:
+          type: string
+          description: Must exist in MDMS hcm-microplanning.Metric (code)
+        metricDetail:
+          $ref: '#/components/schemas/MetricDetail'
+        activityCode: { type: string, minLength: 2, maxLength: 128 }
+
+    AdditionalField:
+      type: object
+      required: [key, value]
+      properties:
+        id: { type: string, minLength: 2, maxLength: 64 }
+        key: { type: string }
+        value: { type: number }
+        showOnUi: { type: boolean, default: true }
+        editable: { type: boolean, default: true }
+        order: { type: integer }
+
+    Plan:
+      type: object
+      required: [tenantId]
+      properties:
+        id:
+          type: string
+          description: Generated on create; required on update
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        locality:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Boundary code, validated against boundary-service
+        campaignId:
+          type: string
+          maxLength: 64
+          description: When present, activities must be an empty array
+        planConfigurationId: { type: string, maxLength: 64 }
+        status:
+          type: string
+          maxLength: 64
+          description: PLAN_ESTIMATION workflow state
+        assignee:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+          description: Set by workflow auto-assignment
+        additionalDetails:
+          type: object
+          additionalProperties: true
+        activities:
+          type: array
+          description: Must not be null (send [] when campaignId is present)
+          items: { $ref: '#/components/schemas/Activity' }
+        resources:
+          type: array
+          description: Mandatory when planConfigurationId is absent
+          items: { $ref: '#/components/schemas/Resource' }
+        targets:
+          type: array
+          description: Must not be null (validated against MDMS Metric / Uom)
+          items: { $ref: '#/components/schemas/Target' }
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        jurisdictionMapping:
+          type: object
+          additionalProperties: { type: string }
+          description: boundaryType -> boundaryCode (enriched)
+        additionalFields:
+          type: array
+          items: { $ref: '#/components/schemas/AdditionalField' }
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+
+    PlanRequest:
+      type: object
+      required: [Plan]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Plan:
+          $ref: '#/components/schemas/Plan'
+
+    BulkPlanRequest:
+      type: object
+      required: [Plans]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        Plans:
+          type: array
+          minItems: 1
+          description: Each plan needs id, tenantId, planConfigurationId, campaignId, status, workflow and auditDetails
+          items: { $ref: '#/components/schemas/Plan' }
+
+    PlanSearchCriteria:
+      type: object
+      required: [tenantId]
+      properties:
+        ids:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        tenantId: { type: string }
+        locality:
+          type: array
+          items: { type: string }
+        campaignId: { type: string }
+        planConfigurationId: { type: string }
+        facilityIds:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+          description: Matches additionalDetails.facilityId
+        onRoadCondition: { type: string }
+        terrain: { type: string }
+        securityQ1: { type: string }
+        securityQ2: { type: string }
+        status: { type: string }
+        assignee: { type: string }
+        jurisdiction:
+          type: array
+          items: { type: string }
+          description: Matches plans whose ancestral path contains any of these codes
+        offset: { type: integer, default: 0 }
+        limit: { type: integer, default: 10, maximum: 100 }
+
+    PlanSearchRequest:
+      type: object
+      required: [PlanSearchCriteria]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        PlanSearchCriteria:
+          $ref: '#/components/schemas/PlanSearchCriteria'
+
+    PlanResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Plan:
+          type: array
+          items: { $ref: '#/components/schemas/Plan' }
+        TotalCount:
+          type: integer
+          description: Search only
+        StatusCount:
+          type: object
+          additionalProperties: { type: integer }
+          description: Search only; workflow state -> count
+
+    # ---------------- Plan employee assignment ----------------
+    PlanEmployeeAssignment:
+      type: object
+      required: [tenantId, planConfigurationId, employeeId, role, jurisdiction]
+      properties:
+        id:
+          type: string
+          description: Generated on create; required on update
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        planConfigurationId: { type: string, minLength: 2, maxLength: 64 }
+        planConfigurationName:
+          type: string
+          description: Enriched from the plan configuration on create
+        employeeId:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: User uuid (validated against egov-user)
+        role:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Must be one of the user's roles; ROOT_* roles have stricter jurisdiction rules
+          example: PLAN_ESTIMATION_APPROVER
+        hierarchyLevel:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: Boundary type of the jurisdiction (must match campaign boundaries)
+        jurisdiction:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string }
+        additionalDetails:
+          type: object
+          additionalProperties: true
+        active:
+          type: boolean
+          description: Set to true on create
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    PlanEmployeeAssignmentRequest:
+      type: object
+      required: [PlanEmployeeAssignment]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        PlanEmployeeAssignment:
+          $ref: '#/components/schemas/PlanEmployeeAssignment'
+
+    PlanEmployeeAssignmentSearchCriteria:
+      type: object
+      required: [tenantId]
+      properties:
+        id: { type: string }
+        tenantId: { type: string, minLength: 2, maxLength: 100 }
+        employeeId:
+          type: array
+          items: { type: string }
+        planConfigurationId: { type: string, maxLength: 64 }
+        planConfigurationName:
+          type: string
+          description: Partial, case-insensitive match (ILIKE)
+        planConfigurationStatus:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+          description: Only valid together with filterUniqueByPlanConfig = true
+        role:
+          type: array
+          items: { type: string }
+        hierarchyLevel: { type: string }
+        jurisdiction:
+          type: array
+          items: { type: string }
+        active: { type: boolean, default: true }
+        filterUniqueByPlanConfig: { type: boolean, default: false }
+        offset: { type: integer, default: 0 }
+        limit: { type: integer, default: 10, maximum: 100 }
+
+    PlanEmployeeAssignmentSearchRequest:
+      type: object
+      required: [PlanEmployeeAssignmentSearchCriteria]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        PlanEmployeeAssignmentSearchCriteria:
+          $ref: '#/components/schemas/PlanEmployeeAssignmentSearchCriteria'
+
+    PlanEmployeeAssignmentResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        PlanEmployeeAssignment:
+          type: array
+          items: { $ref: '#/components/schemas/PlanEmployeeAssignment' }
+        TotalCount:
+          type: integer
+          description: Search only
+
+    # ---------------- Plan facility ----------------
+    PlanFacility:
+      type: object
+      required: [tenantId, planConfigurationId, facilityId, residingBoundary, serviceBoundaries, active]
+      properties:
+        id:
+          type: string
+          description: Generated on create; required on update
+        tenantId: { type: string, minLength: 2, maxLength: 64 }
+        planConfigurationId: { type: string, maxLength: 64 }
+        planConfigurationName:
+          type: string
+          description: Enriched on create
+        boundaryAncestralPath:
+          type: string
+          description: Enriched from boundary-service (pipe separated)
+        facilityId:
+          type: string
+          maxLength: 64
+          description: Validated against the facility service
+        facilityName:
+          type: string
+          description: Enriched from the facility service on create
+        residingBoundary:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Any campaign boundary
+        serviceBoundaries:
+          type: array
+          items: { type: string }
+          description: Unique; lowest microplan hierarchy campaign boundaries
+        jurisdictionMapping:
+          type: object
+          additionalProperties: { type: string }
+        additionalDetails:
+          type: object
+          additionalProperties: true
+          description: |
+            Enriched on create with facilityUsage, capacity, facilityStatus,
+            facilityType, isPermanent and servingPopulation (0).
+            servingPopulation is recomputed on update.
+        active:
+          type: boolean
+          description: Forced to true on create
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    PlanFacilityRequest:
+      type: object
+      required: [RequestInfo, PlanFacility]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        PlanFacility:
+          $ref: '#/components/schemas/PlanFacility'
+
+    PlanFacilitySearchCriteria:
+      type: object
+      required: [tenantId, planConfigurationId]
+      properties:
+        ids:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        tenantId: { type: string }
+        planConfigurationId: { type: string }
+        planConfigurationName:
+          type: string
+          description: Partial, case-insensitive match (ILIKE)
+        facilityName:
+          type: string
+          description: Partial, case-insensitive match (ILIKE)
+        facilityStatus:
+          type: string
+          description: Matches additionalDetails.facilityStatus
+        facilityType:
+          type: string
+          description: Matches additionalDetails.facilityType
+        residingBoundaries:
+          type: array
+          items: { type: string }
+        jurisdiction:
+          type: array
+          items: { type: string }
+        facilityId: { type: string }
+        offset: { type: integer, default: 0 }
+        limit: { type: integer, default: 10, maximum: 100 }
+
+    PlanFacilitySearchRequest:
+      type: object
+      required: [RequestInfo, PlanFacilitySearchCriteria]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        PlanFacilitySearchCriteria:
+          $ref: '#/components/schemas/PlanFacilitySearchCriteria'
+
+    PlanFacilityResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        PlanFacility:
+          type: array
+          items: { $ref: '#/components/schemas/PlanFacility' }
+        TotalCount:
+          type: integer
+          description: Search only
+
+    # ---------------- Errors ----------------
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: |
+            Plan configuration: PLAN_CONFIGURATION_ALREADY_EXISTS, INVALID_PLAN_CONFIG_ID,
+            NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT, NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID,
+            ADDITIONAL_DETAILS_MISSING, JSONPATH_ERROR, ASSUMPTION_KEY_NOT_FOUND_IN_MDMS,
+            DUPLICATE_ASSUMPTION_KEY, TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS,
+            ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND,
+            FILES_NOT_FOUND, OPERATIONS_NOT_FOUND, ASSUMPTIONS_NOT_FOUND, INPUT_KEY_NOT_FOUND,
+            ASSUMPTION_VALUE_NOT_FOUND, NAME_VALIDATION_LIST_EMPTY, NAME_VALIDATION_FAILED,
+            USERINFO_MISSING, VEHICLE_ID_NOT_FOUND_IN_MDMS, PROVIDED_KEY_IS_NOT_PRESENT_IN_JSON_OBJECT,
+            NO_CENSUS_FOUND_FOR_GIVEN_DETAILS, CANNOT_APPROVE_CENSUS_DATA,
+            CANNOT_FINALIZE_CATCHMENT_MAPPING, CANNOT_APPROVE_ESTIMATIONS, WORKFLOW_INTEGRATION_ERROR.
+            Plan: INVALID_PLAN_ID, NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE,
+            ACTIVITIES_CANNOT_BE_NULL, DUPLICATE_ACTIVITY_CODES, PLAN_ACTIVITIES_MANDATORY,
+            PLAN_ACTIVITIES_NOT_ALLOWED, INVALID_ACTIVITY_DATES, PLAN_RESOURCES_MANDATORY,
+            INVALID_RESOURCE_ACTIVITY_LINKAGE, INVALID_TARGET_ACTIVITY_LINKAGE,
+            INVALID_ACTIVITY_DEPENDENCY, CYCLIC_ACTIVITY_DEPENDENCY, METRIC_NOT_FOUND_IN_MDMS,
+            METRIC_UNIT_NOT_FOUND_IN_MDMS, DUPLICATE_ACTIVITY_UUIDS, DUPLICATE_RESOURCE_UUIDS,
+            DUPLICATE_TARGET_UUIDS, PLAN_EMPLOYEE_ASSIGNMENT_FOR_BOUNDARY_NOT_FOUND,
+            JURISDICTION_NOT_FOUND, BULK_UPDATE_ERROR, NO_BUSINESS_SERVICE_DATA_FOUND.
+            Employee assignment: PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS, INVALID_EMPLOYEE_ID,
+            INVALID_EMPLOYEE_ROLE, INVALID_HIERARCHY_LEVEL, INVALID_JURISDICTION,
+            INVALID_ROOT_EMPLOYEE_JURISDICTION, INVALID_EMPLOYEE_JURISDICTION,
+            PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY, INVALID_PLAN_EMPLOYEE_ASSIGNMENT.
+            Plan facility: PLAN_FACILITY_LINKAGE_ALREADY_EXISTS, FACILITY_NOT_FOUND,
+            INVALID_RESIDING_BOUNDARY, DUPLICATE_SERVICE_BOUNDARY, INVALID_SERVICE_BOUNDARY,
+            INVALID_PLAN_FACILITY_ID, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS.
+            Unhandled exceptions use the exception class name (e.g. NullPointerException).
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

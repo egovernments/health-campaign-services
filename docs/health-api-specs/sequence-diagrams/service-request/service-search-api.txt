@@ -1,0 +1,48 @@
+@startuml
+title Service Request - Service Search
+!theme vibrant
+participant Client as c
+participant ServiceRequestService as s
+database Database as db
+
+c -> s : POST /service-request/service/v1/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, ServiceCriteria required;\nServiceCriteria.tenantId required, 2-64 chars)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+alt tenantId invalid for central instance schema
+    s -> c: HttpStatus: 400 INVALID_TENANT_ID
+end
+
+alt ids not provided
+    s -> db: SELECT id FROM (SELECT DISTINCT(service.id), service.createdtime\nFROM eg_service service WHERE service.tenantid = ?\nAND service.servicedefid IN (...) AND service.referenceid IN (...)\nAND service.accountid = ? AND service.clientid = ?\nORDER BY service.createdtime DESC OFFSET ? LIMIT ?) temp
+    activate db
+    db -> s: Service ids
+    deactivate db
+    note right
+        Default offset 0, limit 10.
+        egov.service.request.max.limit (100) is never enforced
+    end note
+    alt no ids
+        s -> c: HttpStatus: 200 Services [] (ResponseInfo null)
+    end
+end
+
+s -> db: SELECT service.*, attribute_value.* FROM eg_service service\nINNER JOIN eg_service_attribute_value attribute_value\nON service.id = attribute_value.referenceid\nWHERE service.tenantid = ? AND service.id IN (...)
+activate db
+db -> s: Rows
+deactivate db
+s -> s: Group rows by service id (HashMap, createdtime order not kept);\nread attribute value via JsonPath $.value
+
+s -> c: HttpStatus: 200 Services (ResponseInfo null, no Pagination)
+deactivate s
+
+note over s, db
+    When ids are passed directly, the id query is skipped:
+    serviceDefIds, referenceIds, accountId, clientId and pagination are not applied.
+end note
+
+@enduml

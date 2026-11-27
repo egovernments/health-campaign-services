@@ -1,0 +1,41 @@
+@startuml
+title Notification Push - Device Token Search
+!theme vibrant
+participant Client as c
+participant NotificationPushService as s
+database Database as db
+
+c -> s : POST /egov-notification-push/device-token/v1/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo @NotNull, userIds @NotEmpty, tenantId @NotNull)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group getSchemaFromTenantId
+    alt central instance and tenantId empty
+        s -> c: HttpStatus: 400 MISSING_TENANT_ID
+    else tenantId contains "." and has no part at schema index position
+        s -> c: HttpStatus: 400 INVALID_TENANT_ID
+    else
+        s -> s: schema = tenantId part at\nstate.schema.index.position.tenantid (0)\n(non-central: default schema)
+    end
+end
+
+s -> db: SELECT DISTINCT ON (userid) ... FROM <schema>.eg_push_device_tokens\nWHERE userid IN (:userIds)\nORDER BY userid, lastmodifiedtime DESC
+activate db
+db -> s: Latest token row per user
+deactivate db
+s -> s: Group rows by devicetoken, collect facilityIds
+note right
+    DB errors are logged and an empty list is returned.
+    tenantId is used only to pick the schema
+    (no tenantid filter). One row per user, so
+    facilityIds holds a single facility.
+end note
+
+s -> c: HttpStatus: 200 DeviceTokens
+deactivate s
+
+@enduml

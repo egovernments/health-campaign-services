@@ -1,0 +1,42 @@
+@startuml
+title Plan Service - Plan Facility Search
+!theme vibrant
+participant Client as c
+participant PlanService as s
+database Database as db
+
+c -> s : POST /plan-service/plan/facility/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, PlanFacilitySearchCriteria required;\ntenantId and planConfigurationId required)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group enrichSearchRequest
+    s -> s: filtersMap = { facilityStatus, facilityType } when present
+end
+
+s -> db: SELECT ... FROM plan_facility_linkage WHERE <criteria>\nORDER BY last_modified_time DESC OFFSET ? LIMIT ?
+activate db
+db -> s: PlanFacilities
+deactivate db
+note right
+    Criteria: ids, planConfigurationId, tenantId,
+    planConfigurationName (ILIKE), facilityId,
+    facilityName (ILIKE), residingBoundaries (IN),
+    jurisdiction (overlaps boundary_ancestral_path),
+    filtersMap: additional_details @> '{...}'::jsonb.
+    Default limit 10, max 100, offset 0.
+    No filter on active.
+end note
+
+s -> db: SELECT COUNT(*) FROM (<same query without pagination>)
+activate db
+db -> s: TotalCount
+deactivate db
+
+s -> c: HttpStatus: 200 PlanFacility, TotalCount
+deactivate s
+
+@enduml

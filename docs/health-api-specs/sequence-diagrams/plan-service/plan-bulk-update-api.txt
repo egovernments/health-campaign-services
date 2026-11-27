@@ -1,0 +1,112 @@
+@startuml
+title Plan Service - Plan (Estimation) Bulk Update
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant ProjectFactory as pf
+participant BoundaryService as bs
+participant WorkflowService as wf
+queue Kafka as k
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /plan-service/plan/bulk/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(Plans required and not empty)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateBulkPlanUpdate
+    s -> pf: /project-factory/v1/project-type/search\n(ids = [Plans[0].campaignId], tenantId = Plans[0].tenantId)
+    activate pf
+    pf -> s: CampaignDetails (hierarchyType)
+    deactivate pf
+    alt no campaign details
+        s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+    end
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+
+    alt plan ids not unique
+        s -> c: HttpStatus: 400 BULK_UPDATE_ERROR (plans not unique)
+    else different tenantId or planConfigurationId
+        s -> c: HttpStatus: 400 BULK_UPDATE_ERROR (inconsistent tenant / config)
+    else a plan has no workflow
+        s -> c: HttpStatus: 400 BULK_UPDATE_ERROR (workflow mandatory)
+    else different status or workflow action
+        s -> c: HttpStatus: 400 BULK_UPDATE_ERROR (inconsistent status / action)
+    end
+
+    s -> db: SELECT id FROM plan WHERE id IN (...) OFFSET 0 LIMIT <n>\n+ full plan fetch
+    activate db
+    db -> s: Existing plans
+    deactivate db
+    alt count differs from request
+        s -> c: HttpStatus: 400 INVALID_PLAN_ID
+    end
+    s -> s: Copy boundaryAncestralPath from DB to each plan
+
+    s -> db: SELECT plan_employee_assignment (tenantId, planConfigurationId,\nemployeeId = user uuid, plan estimation approver roles, active = true)
+    activate db
+    db -> s: PlanEmployeeAssignment
+    deactivate db
+    alt no assignment found
+        s -> c: HttpStatus: 400 PLAN_EMPLOYEE_ASSIGNMENT_FOR_BOUNDARY_NOT_FOUND
+    end
+    loop for each plan
+        alt no assignee jurisdiction in plan boundaryAncestralPath
+            s -> c: HttpStatus: 400 JURISDICTION_NOT_FOUND
+        end
+        s -> s: Set assigneeJurisdiction
+    end
+    s -> s: Enrich jurisdictionMapping for every plan
+end
+
+group invokeWorkflowForStatusUpdate
+    s -> db: SELECT plan_employee_assignment\n(ancestral boundaries of Plans[0], approver roles)
+    activate db
+    db -> s: PlanEmployeeAssignments
+    deactivate db
+    s -> s: Auto-assign assignee once using Plans[0]\n(SEND_BACK_FOR_CORRECTION: each plan's lastModifiedBy)
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(one ProcessInstance per plan, businessService PLAN_ESTIMATION)
+    activate wf
+    alt workflow transition fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 WORKFLOW_INTEGRATION_ERROR
+    else success
+        wf -> s: ProcessInstances
+        deactivate wf
+        s -> s: status of every plan = processInstances[0].state.state,\nupdate auditDetails
+    end
+end
+
+s -> db: Batch UPDATE plan SET status = ?, assignee = ?,\nlast_modified_by = ?, last_modified_time = ? WHERE id = ?
+activate db
+deactivate db
+s -> k: BulkPlanRequest /bulk-update-plan
+activate k
+s -> c: HttpStatus: 201 Plan
+deactivate s
+
+group async
+    idx -> k: Consume /bulk-update-plan
+    activate idx
+    idx -> el: Store Plans (bulk) /plan-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+note over s
+    No persister mapping exists for /bulk-update-plan:
+    the DB is updated synchronously by the service.
+    Campaign search uses Plans[0].tenantId (not the state-level tenant).
+end note
+
+@enduml

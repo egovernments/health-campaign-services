@@ -1,0 +1,69 @@
+@startuml
+title PGR Services - Request Plain Search
+!theme vibrant
+participant Client as c
+participant PGRService as s
+participant UserService as us
+participant WorkflowService as wf
+database Database as db
+
+c -> s : POST /pgr-services/v2/request/_plainsearch?tenantIds&...
+activate s
+
+s -> s: Validate body (RequestInfo) and query params\n(RequestSearchCriteria via @ModelAttribute)
+alt validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validatePlainSearch
+    alt tenantIds empty
+        s -> c: HttpStatus: 400 TENANT_ID_LIST_EMPTY
+    end
+end
+
+s -> s: isPlainSearch = true,\nlimit default 100, max 200, offset default 0
+note right
+    No user-type / allowed-param checks and
+    no mobileNumber to userIds enrichment
+end note
+
+s -> db: SELECT ser.*, ads.* FROM eg_pgr_service_v2 ser\nINNER JOIN eg_pgr_address_v2 ads ON ads.parentId = ser.id\nWHERE ser.tenantId IN (tenantIds) AND <other criteria>\nORDER BY <sortBy> <sortOrder> OFFSET ? LIMIT ?
+activate db
+alt toDate without fromDate
+    s -> c: HttpStatus: 400 INVALID_SEARCH
+else invalid tenant (schema resolved from criteria.tenantId)
+    s -> c: HttpStatus: 400 INVALID_TENANT_ID
+end
+db -> s: Services with address
+deactivate db
+
+alt no services
+    s -> c: HttpStatus: 200 ServiceResponse (ServiceWrappers: [])
+else services found
+    s -> us: /user/_search (uuid = accountIds, tenantId of first record)
+    activate us
+    us -> s: Users
+    deactivate us
+    alt no users found
+        s -> c: HttpStatus: 400 USER_NOT_FOUND
+    end
+    loop per tenantId
+        s -> wf: /egov-workflow-v2/egov-wf/process/_search\n?tenantId&businessIds=<serviceRequestIds>
+        activate wf
+        wf -> s: ProcessInstances
+        deactivate wf
+        alt process instance count != complaint count
+            s -> c: HttpStatus: 400 WORKFLOW_NOT_FOUND
+        end
+    end
+    s -> s: Sort by auditDetails.createdTime DESC
+    s -> c: HttpStatus: 200 ServiceResponse (ServiceWrappers)
+end
+deactivate s
+
+note over s
+    complaintsResolved, averageResolutionTime and
+    complaintTypes are not computed (returned as 0)
+end note
+
+@enduml

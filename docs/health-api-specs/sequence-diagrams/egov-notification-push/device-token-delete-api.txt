@@ -1,0 +1,53 @@
+@startuml
+title Notification Push - Device Token Delete
+!theme vibrant
+participant Client as c
+participant NotificationPushService as s
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /egov-notification-push/device-token/v1/_delete
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, deviceTokens required;\neach token: userId, deviceToken, deviceType, tenantId @NotNull)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+loop for each deviceToken
+    alt deviceToken is empty
+        s -> c: HttpStatus: 400 PUSH_MISSING_DEVICE_TOKEN
+    end
+    s -> s: userId = RequestInfo.userInfo.uuid if userId is empty
+    alt facilityIds present
+        s -> s: Expand into one delete row per facilityId\n(userId, deviceToken, tenantId, facilityId)
+    else no facilityIds
+        s -> s: Keep token as is (facilityId = null)
+    end
+end
+
+s -> s: Resolve topic from deviceTokens[0].tenantId\n(central instance: <stateCode>-<topic>)
+s -> k: DeviceTokenRequest (expanded rows)\n/<stateCode>-delete-push-device-token-health
+activate k
+s -> c: HttpStatus: 200 ResponseInfo (no deviceTokens)
+deactivate s
+
+group async
+    prs -> k: Consume delete-push-device-token-health
+    activate prs
+    prs -> db: DELETE FROM eg_push_device_tokens\nWHERE userid = ? AND devicetoken = ?\nAND tenantid = ? AND facilityid = ?
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over prs, db
+    When facilityIds are omitted, facilityId is null and
+    "facilityid = NULL" matches no row, so nothing is deleted
+    (code comment and contract say all rows are deleted).
+    Same persister topic mismatch as register.
+end note
+
+@enduml

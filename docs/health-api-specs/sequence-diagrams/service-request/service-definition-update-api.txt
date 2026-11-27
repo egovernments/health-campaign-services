@@ -1,0 +1,95 @@
+@startuml
+title Service Request - Service Definition Update
+!theme vibrant
+participant Client as c
+participant ServiceRequestService as s
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /service-request/service/definition/v1/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(same rules as create: RequestInfo, ServiceDefinition,\ncode, attributes, attribute code / dataType / isActive)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateUpdateRequest
+    group validateExistence
+        s -> db: SELECT id FROM eg_service_definition sd\nWHERE sd.tenantid = ? AND sd.code IN (?)\n(includeDeleted = true)\nORDER BY sd.createdtime DESC OFFSET 0 LIMIT 10
+        activate db
+        db -> s: Service definition ids
+        deactivate db
+        opt ids found
+            s -> db: SELECT eg_service_definition INNER JOIN\neg_service_attribute_definition WHERE sd.id IN (...)
+            activate db
+            db -> s: Service definitions
+            deactivate db
+        end
+        alt no definition for tenantId + code
+            s -> c: HttpStatus: 400 SERVICE_DEFINITION_NOT_EXIST_ERR_CODE
+        end
+    end
+    note right
+        validateService (check that a Service uses
+        this definition) is commented out in code.
+        The id in the request is ignored; lookup is by tenantId + code
+    end note
+
+    group validateAttributeDefinitionUniqueness
+        alt duplicate attribute code in request
+            s -> c: HttpStatus: 400 ATTRIBUTE_CODE_UNIQUENESS_ERR_CODE
+        end
+    end
+
+    group validateAttributeValuesAsPerDataType
+        alt values passed for a dataType other than SingleValueList / MultiValueList
+            s -> c: HttpStatus: 400 INVALID_ATTRIBUTE_DEFINITION_ERR_CODE
+        end
+    end
+
+    group validateRegex
+        alt regex fails Pattern.compile
+            s -> c: HttpStatus: 400 INVALID_REGEX_ERR_CODE
+        end
+    end
+end
+
+group enrichServiceDefinitionUpdateRequest
+    s -> s: id and auditDetails taken from DB record;\nlastModifiedBy = userInfo.uuid, lastModifiedTime = now
+    loop for each attribute in request
+        alt attribute code already exists in DB
+            s -> s: Reuse existing id, referenceId, auditDetails;\nupdate lastModifiedBy / lastModifiedTime
+        else new attribute code
+            s -> s: id = random UUID, referenceId = definition id,\nnew auditDetails
+        end
+        s -> s: values = [""] for non list dataTypes
+    end
+end
+
+s -> k: ServiceDefinitionRequest /update-service-definition
+activate k
+s -> s: Reset values = null for non list dataTypes
+s -> c: HttpStatus: 200 ServiceDefinitions [ServiceDefinition]
+deactivate s
+
+group async
+    prs -> k: Consume /update-service-definition
+    activate prs
+    prs -> db: UPDATE eg_service_definition SET lastmodifiedby, lastmodifiedtime,\nadditionaldetails, isactive WHERE id = ?
+    activate db
+    deactivate db
+    prs -> db: INSERT INTO eg_service_attribute_definition ...\nON CONFLICT (id) DO UPDATE SET datatype, values, isactive,\nrequired, regex, order, lastmodifiedby, lastmodifiedtime, additionaldetails
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s, db
+    isActive = false soft deletes the definition. Attributes missing from the request
+    are not removed. No egov-indexer config exists for this topic.
+end note
+
+@enduml

@@ -1,6 +1,7 @@
 package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -18,8 +19,8 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.ProjectFacilitySearch;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
+import org.egov.common.models.project.ProjectFacilitySearch;
+import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,9 +36,14 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -188,13 +194,20 @@ class ProjectFacilityApiControllerTest {
                 .builder().projectFacility(
                 ProjectFacilitySearch.builder().projectId(Collections.singletonList("12")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
-        when(projectFacilityService.search(any(ProjectFacilitySearchRequest.class),
+
+        ProjectFacilityBulkResponse mockResponse = ProjectFacilityBulkResponse.builder()
+                .projectFacilities(Arrays.asList(ProjectFacilityTestBuilder.builder()
+                        .withId().withAuditDetails().build()))
+                .totalCount(1L)
+                .responseInfo(ResponseInfo.builder().status("successful").build())
+                .build();
+        when(projectFacilityService.searchFacilities(any(ProjectFacilitySearchRequest.class),
                 any(Integer.class),
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProjectFacilityTestBuilder.builder()
-                .withId().withAuditDetails().build()));
+                any(Boolean.class),
+                anyBoolean())).thenReturn(mockResponse);
 
         final MvcResult result = mockMvc.perform(post(
                         "/facility/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
@@ -207,7 +220,54 @@ class ProjectFacilityApiControllerTest {
         ProjectFacilityBulkResponse response = objectMapper.readValue(responseStr,
                 ProjectFacilityBulkResponse.class);
 
-        assertEquals(response.getProjectFacilities().size(), 1);
+        assertEquals(1, response.getProjectFacilities().size());
+    }
+
+    @Test
+    @DisplayName("Should accept hierarchy search request and return response with facilityMap")
+    void shouldAcceptHierarchySearchRequestAndReturnFacilityMap() throws Exception {
+
+        ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest
+                .builder().projectFacility(
+                        ProjectFacilitySearch.builder()
+                                .projectId(Collections.singletonList("P1"))
+                                .boundaryTypes(Arrays.asList("VILLAGE", "DISTRICT")).build()
+                ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+
+        Map<String, List<String>> facilityMap = new HashMap<>();
+        facilityMap.put("VILLAGE", Arrays.asList("F1", "F2"));
+        facilityMap.put("DISTRICT", Collections.singletonList("F3"));
+
+        ProjectFacilityBulkResponse mockResponse = ProjectFacilityBulkResponse.builder()
+                .projectFacilities(Arrays.asList(ProjectFacilityTestBuilder.builder()
+                        .withId().withAuditDetails().build()))
+                .facilityMap(facilityMap)
+                .totalCount(1L)
+                .responseInfo(ResponseInfo.builder().status("successful").build())
+                .build();
+        when(projectFacilityService.searchFacilities(any(ProjectFacilitySearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class),
+                anyBoolean())).thenReturn(mockResponse);
+
+        final MvcResult result = mockMvc.perform(post(
+                        "/facility/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(projectFacilitySearchRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProjectFacilityBulkResponse response = objectMapper.readValue(responseStr,
+                ProjectFacilityBulkResponse.class);
+
+        assertEquals(1, response.getProjectFacilities().size());
+        assertNotNull(response.getFacilityMap());
+        assertEquals(2, response.getFacilityMap().get("VILLAGE").size());
+        assertEquals(1, response.getFacilityMap().get("DISTRICT").size());
     }
 
     @Test
@@ -298,5 +358,45 @@ class ProjectFacilityApiControllerTest {
         verify(producer, times(1)).push(eq("project-facility-bulk-delete-topic"),
                 any(ProjectFacilityBulkRequest.class));
         verify(projectConfiguration, times(1)).getBulkDeleteProjectFacilityTopic();
+    }
+
+    @Test
+    @DisplayName("Without onlyOutsideHouseholdSites the search is called as before (sites left out)")
+    void shouldPassOnlyOutsideHouseholdSitesFalseByDefault() throws Exception {
+        ProjectFacilitySearchRequest request = ProjectFacilitySearchRequest.builder().projectFacility(
+                ProjectFacilitySearch.builder().projectId(Collections.singletonList("P1"))
+                        .boundaryTypes(Arrays.asList("LOCALITY", "VILLAGE")).build())
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(projectFacilityService.searchFacilities(any(ProjectFacilitySearchRequest.class), any(Integer.class),
+                any(Integer.class), any(String.class), any(), any(Boolean.class), anyBoolean()))
+                .thenReturn(ProjectFacilityBulkResponse.builder().projectFacilities(new ArrayList<>())
+                        .responseInfo(ResponseInfo.builder().status("successful").build()).build());
+
+        mockMvc.perform(post("/facility/v1/_search?limit=10&offset=0&tenantId=default")
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(projectFacilityService).searchFacilities(any(ProjectFacilitySearchRequest.class), eq(10), eq(0),
+                eq("default"), any(), any(Boolean.class), eq(false));
+    }
+
+    @Test
+    @DisplayName("onlyOutsideHouseholdSites=true in the URL is passed to the search")
+    void shouldPassOnlyOutsideHouseholdSitesFromTheUrl() throws Exception {
+        ProjectFacilitySearchRequest request = ProjectFacilitySearchRequest.builder().projectFacility(
+                ProjectFacilitySearch.builder().projectId(Collections.singletonList("P1"))
+                        .boundaryTypes(Arrays.asList("LOCALITY", "VILLAGE")).build())
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(projectFacilityService.searchFacilities(any(ProjectFacilitySearchRequest.class), any(Integer.class),
+                any(Integer.class), any(String.class), any(), any(Boolean.class), anyBoolean()))
+                .thenReturn(ProjectFacilityBulkResponse.builder().projectFacilities(new ArrayList<>())
+                        .responseInfo(ResponseInfo.builder().status("successful").build()).build());
+
+        mockMvc.perform(post("/facility/v1/_search?limit=10&offset=0&tenantId=default&onlyOutsideHouseholdSites=true")
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        verify(projectFacilityService).searchFacilities(any(ProjectFacilitySearchRequest.class), eq(10), eq(0),
+                eq("default"), any(), any(Boolean.class), eq(true));
     }
 }

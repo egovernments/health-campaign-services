@@ -1,0 +1,102 @@
+@startuml
+title Resource Generator - GeoJSON / Shapefile Parsing (Plan Configuration Consumer)
+!theme vibrant
+participant PlanService as ps
+queue Kafka as k
+participant ResourceGenerator as s
+participant ProjectFactory as pf
+participant FileStore as fs
+
+ps -> k: PlanConfigurationRequest (trigger status, workflow set)\n/plan-config-create-topic or /plan-config-update-topic
+activate k
+s -> k: Consume PlanConfigurationRequest
+activate s
+
+s -> pf: /project-factory/v1/project-type/search
+activate pf
+pf -> s: CampaignResponse
+deactivate pf
+
+s -> s: Active file "EstimationsInprogress" with\ninputFileType GEOJSON or SHAPEFILE
+
+alt inputFileType == GEOJSON (GeoJsonParser)
+    s -> fs: GET /filestore/v1/files/id?tenantId={tenantId}&fileStoreId={fileStoreId}
+    activate fs
+    fs -> s: File bytes
+    deactivate fs
+    alt download fails
+        s -> s: CustomException FILESTORE_EXCEPTION
+    end
+    s -> s: Bytes -> UTF-8 string -> JsonNode
+    alt invalid JSON
+        s -> s: CustomException JSON_PARSE_ERROR
+    end
+else inputFileType == SHAPEFILE (ShapeFileParser)
+    s -> fs: GET /filestore/v1/files/id?tenantId={tenantId}&fileStoreId={fileStoreId}
+    activate fs
+    fs -> s: Zip bytes
+    deactivate fs
+    s -> s: Extract first ".dbf" entry from zip into java.io.tmpdir
+    note right
+        Only the .dbf entry is extracted (comment says .shp);
+        IOException while extracting is only logged
+    end note
+    s -> s: GeoTools DataStore -> FeatureJSON\nwrite geojsonfile.geojson
+    alt conversion fails
+        s -> s: CustomException ERROR_IN_SHAPE_FILE_PARSER_WHILE_CONVERTING_\nSHAPE_FILE_TO_GEOJSON_IN_METHOD_CONVERTSHAPEFILETOGEOJSON
+    end
+    s -> s: GeoJSON file -> JsonNode
+end
+
+s -> s: Collect attribute names from features[0].properties
+alt no features
+    s -> s: CustomException "No Features found in geojson"
+end
+s -> s: validateColumnNames: every mappedFrom of this file\n(except the_geom) must be a property
+alt mapping not found in file
+    s -> s: CustomException "Attribute mapping is invalid."
+end
+
+group calculateResources
+    loop each feature
+        loop each operation
+            s -> s: result = input (feature / assumption / previous output)\n<operator> assumptionValue
+            alt input not parseable
+                s -> s: CustomException INPUT_VALUE_NOT_FOUND
+            else unsupported operator
+                s -> s: CustomException UNSUPPORTED_OPERATOR
+            end
+            s -> s: Write output into feature.properties
+        end
+        s -> s: Build Plan (locality = HCM_ADMIN_CONSOLE_BOUNDARY_CODE,\nresources, workflow INITIATE)
+        alt boundary code property missing
+            s -> s: CustomException INPUT_VALUE_NOT_FOUND
+        end
+        s -> k: PlanRequest /resource-microplan-create-topic
+    end
+end
+
+s -> s: Write updated JSON to file
+alt write fails
+    s -> s: CustomException NOT_ABLE_TO_WRITE_TO_FILE
+end
+s -> fs: POST /filestore/v1/files (multipart application/geo+json,\ntenantId, module = microplan)
+activate fs
+fs -> s: files[0].fileStoreId
+deactivate fs
+s -> s: Returned fileStoreId is discarded\n(plan configuration is not updated)
+
+alt any exception
+    s -> s: Log and rethrow CustomException 500
+end
+deactivate s
+
+group async downstream
+    ps -> k: Consume /resource-microplan-create-topic
+    activate ps
+    ps -> ps: PlanService.createPlan(...)
+    deactivate ps
+end
+deactivate k
+
+@enduml

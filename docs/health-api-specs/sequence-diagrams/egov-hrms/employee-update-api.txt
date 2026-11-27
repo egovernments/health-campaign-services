@@ -1,0 +1,128 @@
+@startuml
+title HRMS - Employee Update
+!theme vibrant
+participant Client as c
+participant HrmsService as s
+participant BoundaryService as bs
+participant MDMSService as mdms
+participant IndividualService as ind
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /egov-hrms/employees/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(same constraints as create)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateUpdateEmployee
+    s -> bs: /boundary-service/boundary/_search\n?limit&offset=0&tenantId&codes=<jurisdiction boundaries of FIRST employee>
+    activate bs
+    alt boundary-service call fails
+        bs -> s: Error
+        s -> c: HttpStatus: 400 BOUNDARY_SERVICE_SEARCH_ERROR
+    else success
+        bs -> s: Boundaries (not used)
+        deactivate bs
+    end
+
+    s -> mdms: /egov-mdms-service/v1/_search\n(common-masters, egov-hrms, ACCESSCONTROL-ROLES masters)
+    activate mdms
+    mdms -> s: Master data
+    deactivate mdms
+
+    s -> s: Employee search (uuids of request, tenantId of first employee)
+    note right
+        Same flow as employee-search-api.txt:
+        DB query + individual search for user details
+    end note
+    s -> db: SELECT eg_hrms_employee LEFT JOIN child tables\nWHERE tenantid = ? AND uuid IN (...)
+    activate db
+    db -> s: Existing employees
+    deactivate db
+    s -> ind: /individual/v1/_search?limit=1000&offset=0&tenantId\n(id IN employee uuids, type EMPLOYEE)
+    activate ind
+    ind -> s: Users
+    deactivate ind
+
+    loop each employee
+        s -> s: validateEmployeeForUpdate (id, code, uuid present)
+        alt id, code and uuid present
+            alt no existing employees found
+                s -> s: ERR_HRMS_UPDATE_EMPLOYEE_NOT_EXIST_CODE
+            else
+                s -> s: validateDataConsistency\n(code unchanged; existing assignment, jurisdiction, test,\neducation, serviceHistory, document, deactivation ids must all be sent;\nif isActive = false: deactivation details effectiveFrom = today,\nreason in MDMS DeactivationReason, new deactivation needs isActive false;\nif isActive and reActivateEmployee: reactivation effectiveFrom between\nlast deactivation and now)
+            end
+        end
+        s -> s: validateMdmsData (same checks as create)
+    end
+    alt errorMap not empty
+        s -> c: HttpStatus: 400 ERR_HRMS_UPDATE_NULL_ID / ERR_HRMS_UPDATE_NULL / ERR_HRMS_UPDATE_NULL_UUID /\nERR_HRMS_UPDATE_EMPLOYEE_NOT_EXIST_CODE / ERR_HRMS_UPDATE_EMPLOYEE_CODE_CHANGE /\nERR_HRMS_UPDATE_ASSIGNEMENT_INCOSISTENT / ERR_HRMS_UPDATE_JURISDICTION_INCOSISTENT /\nERR_HRMS_UPDATE_TESTS_INCOSISTENT / ERR_HRMS_UPDATE_EDUCATION_INCOSISTENT /\nERR_HRMS_UPDATE_SERVICE_HISTORY_INCOSISTENT / ERR_HRMS_UPDATE_DOCUMENT_INCOSISTENT /\nERR_HRMS_UPDATE_DEACT_DETAILS_INCOSISTENT / ERR_HRMS_INVALID_DEACT_REQUEST /\nERR_HRMS_UPDATE_DEACT_DETAILS_INCORRECT_EFFECTIVEFROM / ERR_HRMS_INVALID_DEACT_REASON /\nERR_HRMS_UPDATE_REACT_DETAILS_INCORRECT_EFFECTIVEFROM / <create MDMS validation codes>
+    end
+end
+
+group EmployeeService.update
+    s -> s: Employee search again by uuids (same DB + individual calls as above)
+    loop each employee
+        group enrichUpdateRequest
+            alt employee uuid not in existing employees
+                s -> c: HttpStatus: 400 EMPLOYEE_NOT_FOUND
+            end
+            s -> s: user.userName = code, user.active = isActive
+            s -> s: New child records (id null): random UUID, auditDetails.createdBy = userInfo.userName\nChanged child records: lastModifiedBy / lastModifiedDate\nNew deactivation / reactivation: referenceId of ALL documents = its id
+        end
+        group updateUser
+            s -> ind: /individual/v1/_search?limit=1000&offset=0&tenantId\n(id = user.uuid, userUuid = user.userServiceUuid)
+            activate ind
+            ind -> s: Individual
+            deactivate ind
+            opt individual found
+                s -> ind: /individual/v1/_update\n(name, gender, email, mobile, dob, address,\nuserDetails(username, password, roles), isSystemUserActive)
+                activate ind
+                ind -> s: Individual
+                deactivate ind
+            end
+            alt any exception
+                s -> c: HttpStatus: 400 HRMS_EMPLOYEE_UPDATE_USER_SERVICE_ERROR
+            end
+            note right
+                Individual not found: silently skipped.
+                defaultUserService: /user/users/_updatenovalidate,
+                errors are logged and swallowed.
+            end note
+        end
+    end
+    s -> k: EmployeeRequest /egov-hrms-update\n(state specific topic name for the tenant)
+    activate k
+    s -> c: HttpStatus: 202 { ResponseInfo, Employees, TotalCount: 0, Errors: [] }
+end
+deactivate s
+
+group async
+    s -> k: Consume /egov-hrms-update
+    s -> k: EmployeeRequest /update-hrms-employee
+    note right
+        HrmsConsumer also sends the reactivation SMS
+        (see kafka-consumers.txt)
+    end note
+    prs -> k: Consume /update-hrms-employee
+    activate prs
+    prs -> db: DELETE FROM eg_hrms_employee WHERE uuid = ?\n(child tables removed by ON DELETE CASCADE)
+    activate db
+    deactivate db
+    prs -> db: INSERT INTO eg_hrms_employee, eg_hrms_assignment,\neg_hrms_educationaldetails, eg_hrms_departmentaltests,\neg_hrms_empdocuments, eg_hrms_servicehistory, eg_hrms_jurisdiction,\neg_hrms_deactivationdetails, eg_hrms_reactivationdetails
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s, db
+    Employee-level auditDetails are taken from the request as sent (not set by the service).
+    No egov-indexer config exists for HRMS topics.
+end note
+
+@enduml

@@ -1,0 +1,166 @@
+@startuml
+title Plan Service - Plan (Estimation) Create
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant MdmsService as mdms
+participant ProjectFactory as pf
+participant BoundaryService as bs
+participant WorkflowService as wf
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /plan-service/plan/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(Plan required; tenantId 2-64; activities[].code 2-128;\nconditions entity/entityProperty/expression; resources[].resourceType;\ntargets[].metricDetail value 0.01-999.99, comparator, unit;\nadditionalFields key/value)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validatePlanCreate
+    s -> mdms: /mdms-v2/v1/_search (root tenant)\nhcm-microplanning masters incl. Metric, Uom
+    activate mdms
+    mdms -> s: MdmsRes
+    deactivate mdms
+    alt MdmsRes empty
+        s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+    end
+    s -> pf: /project-factory/v1/project-type/search (ids = [campaignId])
+    activate pf
+    pf -> s: CampaignDetails (hierarchyType)
+    deactivate pf
+    alt no campaign details
+        s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+    end
+    s -> bs: /boundary-service/boundary-relationships/_search\n?codes=<locality>&includeParents=true&includeChildren=false\n&tenantId&hierarchyType=<campaign hierarchyType>
+    activate bs
+    bs -> s: TenantBoundary
+    deactivate bs
+    alt boundary not found
+        s -> c: HttpStatus: 400 NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE
+    end
+    opt request came from ResourceEstimationConsumer
+        s -> s: Enrich boundaryAncestralPath (root|..|locality)\nand jurisdictionMapping
+    end
+
+    group validateActivities
+        alt activities == null
+            s -> c: HttpStatus: 400 ACTIVITIES_CANNOT_BE_NULL
+        else duplicate activity codes
+            s -> c: HttpStatus: 400 DUPLICATE_ACTIVITY_CODES
+        else no campaignId and no activities
+            s -> c: HttpStatus: 400 PLAN_ACTIVITIES_MANDATORY
+        else campaignId present and activities not empty
+            s -> c: HttpStatus: 400 PLAN_ACTIVITIES_NOT_ALLOWED
+        else plannedEndDate < plannedStartDate
+            s -> c: HttpStatus: 400 INVALID_ACTIVITY_DATES
+        end
+    end
+
+    opt planConfigurationId present
+        s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = ?
+        activate db
+        db -> s: Plan configuration
+        deactivate db
+        alt not found
+            s -> c: HttpStatus: 400 INVALID_PLAN_CONFIG_ID
+        end
+    end
+
+    alt no planConfigurationId and no resources
+        s -> c: HttpStatus: 400 PLAN_RESOURCES_MANDATORY
+    else resource.activityCode not an activity code
+        s -> c: HttpStatus: 400 INVALID_RESOURCE_ACTIVITY_LINKAGE
+    else target.activityCode not an activity code
+        s -> c: HttpStatus: 400 INVALID_TARGET_ACTIVITY_LINKAGE
+    else dependency not an activity code
+        s -> c: HttpStatus: 400 INVALID_ACTIVITY_DEPENDENCY
+    else two activities depend on each other
+        s -> c: HttpStatus: 400 CYCLIC_ACTIVITY_DEPENDENCY
+    end
+
+    s -> s: Validate targets[].metric against MDMS Metric codes\nand metricDetail.unit against Uom uomCode
+    alt JSONPath evaluation fails
+        s -> c: HttpStatus: 400 JSONPATH_ERROR
+    else metric not in MDMS
+        s -> c: HttpStatus: 400 METRIC_NOT_FOUND_IN_MDMS
+    else unit not in MDMS
+        s -> c: HttpStatus: 400 METRIC_UNIT_NOT_FOUND_IN_MDMS
+    end
+
+    alt RequestInfo.userInfo missing
+        s -> c: HttpStatus: 400 USERINFO_MISSING
+    end
+
+    opt request NOT from ResourceEstimationConsumer
+        s -> db: SELECT plan_employee_assignment WHERE tenant_id = ?\nAND plan_configuration_id = ? AND employee_id IN (user uuid)\nAND role IN (ROOT_PLAN_ESTIMATION_APPROVER, PLAN_ESTIMATION_APPROVER)\nAND active = true
+        activate db
+        db -> s: PlanEmployeeAssignment
+        deactivate db
+        alt no assignment found
+            s -> c: HttpStatus: 400 PLAN_EMPLOYEE_ASSIGNMENT_FOR_BOUNDARY_NOT_FOUND
+        else no assignee jurisdiction in boundaryAncestralPath
+            s -> c: HttpStatus: 400 JURISDICTION_NOT_FOUND
+        end
+        s -> s: Set assigneeJurisdiction
+    end
+end
+
+group enrichPlanCreate
+    s -> s: Generate ids for plan, activities, conditions,\nresources, targets, additionalFields
+    s -> s: Empty dependencies => [""]
+    s -> s: Set auditDetails
+end
+
+opt workflow present in request
+    s -> db: SELECT plan_employee_assignment WHERE jurisdiction overlaps\nancestral path (without locality), planConfigurationId,\nrole IN plan estimation approver roles, active = true
+    activate db
+    db -> s: PlanEmployeeAssignments
+    deactivate db
+    s -> s: Auto-assign assignee\n(INITIATE: lowest boundary with an employee;\nEDIT_AND_SEND_FOR_APPROVAL / APPROVE: next higher level\nabove assigneeJurisdiction;\nSEND_BACK_FOR_CORRECTION: auditDetails.lastModifiedBy)
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(businessService PLAN_ESTIMATION, moduleName plan-service)
+    activate wf
+    alt workflow transition fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 WORKFLOW_INTEGRATION_ERROR
+    else success
+        wf -> s: ProcessInstance
+        deactivate wf
+        s -> s: status = processInstances[0].state.state,\nupdate auditDetails
+    end
+end
+
+s -> k: PlanRequestDTO /save-plan
+activate k
+s -> c: HttpStatus: 202 Plan
+deactivate s
+
+group async
+    prs -> k: Consume /save-plan
+    activate prs
+    prs -> db: INSERT INTO plan, plan_activity, plan_activity_condition,\nplan_resource, plan_target, plan_additional_field
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /save-plan
+    activate idx
+    idx -> el: Store Plan /plan-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+note over s
+    boundaryAncestralPath is @JsonIgnore on Plan and is only enriched
+    for the Kafka consumer path. Via this REST API it stays null, so the
+    jurisdiction check / auto-assignment fails with a NullPointerException
+    (HTTP 400 "An unhandled exception occurred on the server").
+    In practice plans are created through /resource-microplan-create-topic.
+end note
+
+@enduml

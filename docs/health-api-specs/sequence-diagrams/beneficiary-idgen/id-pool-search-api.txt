@@ -1,0 +1,41 @@
+@startuml
+title Beneficiary IdGen - ID Pool Search
+!theme vibrant
+participant Client as c
+participant BeneficiaryIdGen as s
+database Database as db
+participant GlobalExceptionHandler as he
+
+c -> s : POST /beneficiary-idgen/id/id_pool/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo required, IdPoolSearch required;\ntenantId required, ids size >= 1 when present,\nstatus one of UNASSIGNED | ASSIGNED | DISPATCHED)
+alt request body validation fails
+    s -> he: MethodArgumentNotValidException
+    activate he
+    he -> c: HttpStatus: 400 ErrorRes\n{ Errors: [code: "400 BAD_REQUEST", message: "Invalid input", params: {field: msg}] }
+    deactivate he
+end
+
+s -> db: SELECT * FROM id_pool WHERE tenantId = :tenantId\n[AND status = :status] AND id IN (:ids)\nORDER BY createdTime ASC
+activate db
+alt ids not provided (null)
+    db -> s: SQL error (IN with null list)
+    s -> he: Exception
+    activate he
+    he -> c: HttpStatus: 200 ErrorRes { ResponseInfo.status: FAILED,\nErrors: [code: "400 BAD_REQUEST", message: <SQL error>] }
+    deactivate he
+else
+    db -> s: IdRecords
+end
+deactivate db
+
+s -> c: HttpStatus: 200 IdDispatchResponse\n{ ResponseInfo, UniqueBeneficiaryIds, TotalCount = number of records }
+deactivate s
+
+note over s, db
+    No pagination: every matching id is returned.
+    FetchLimit / TotalLimit are null in the response.
+end note
+
+@enduml

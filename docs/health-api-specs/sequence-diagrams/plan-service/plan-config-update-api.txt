@@ -1,0 +1,197 @@
+@startuml
+title Plan Service - Plan Configuration Update
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant MdmsService as mdms
+participant ProjectFactory as pf
+participant CensusService as cs
+participant WorkflowService as wf
+queue Kafka as k
+participant PersisterService as prs
+participant ResourceGenerator as rg
+database Database as db
+
+c -> s : POST /plan-service/config/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(same constraints as create)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateUpdateRequest
+    s -> mdms: /mdms-v2/v1/_search (root tenant, hcm-microplanning + HCM-ADMIN-CONSOLE masters)
+    activate mdms
+    mdms -> s: MdmsRes
+    deactivate mdms
+    alt MdmsRes empty
+        s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+    end
+    s -> mdms: /mdms-v2/v2/_search (schemaCode hcm-microplanning.VehicleDetails)
+    activate mdms
+    mdms -> s: Mdms[]
+    deactivate mdms
+    alt no VehicleDetails records
+        s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+    end
+    s -> pf: /project-factory/v1/project-type/search (ids = [campaignId])
+    activate pf
+    pf -> s: CampaignDetails
+    deactivate pf
+    alt no campaign details
+        s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+    end
+
+    s -> db: SELECT id FROM plan_configuration WHERE id = ?\n(+ full row fetch with files, assumptions, operations, mapping)
+    activate db
+    db -> s: Existing plan configuration
+    deactivate db
+    alt plan configuration not found
+        s -> c: HttpStatus: 400 INVALID_PLAN_CONFIG_ID
+    end
+
+    s -> s: Validate assumption keys against MDMS HypothesisAssumptions
+    alt additionalDetails missing
+        s -> c: HttpStatus: 400 ADDITIONAL_DETAILS_MISSING
+    else JSONPath evaluation fails
+        s -> c: HttpStatus: 400 JSONPATH_ERROR
+    else assumption key not in MDMS
+        s -> c: HttpStatus: 400 ASSUMPTION_KEY_NOT_FOUND_IN_MDMS
+    end
+    s -> s: Validate active assumption keys are unique
+    alt duplicate key
+        s -> c: HttpStatus: 400 DUPLICATE_ASSUMPTION_KEY
+    end
+
+    opt workflow.action == INITIATE
+        alt files / operations / assumptions empty
+            s -> c: HttpStatus: 400 FILES_NOT_FOUND / OPERATIONS_NOT_FOUND / ASSUMPTIONS_NOT_FOUND
+        end
+        s -> mdms: /mdms-v2/v2/_search\n(HCM-ADMIN-CONSOLE.adminSchema, uniqueIdentifiers [boundary.MP-<projectType>])
+        activate mdms
+        mdms -> s: adminSchema
+        deactivate mdms
+        alt operation input not allowed
+            s -> c: HttpStatus: 400 INPUT_KEY_NOT_FOUND
+        else operation assumptionValue not allowed
+            s -> c: HttpStatus: 400 ASSUMPTION_VALUE_NOT_FOUND
+        end
+    end
+
+    opt files present
+        alt templateIdentifier not in MDMS
+            s -> c: HttpStatus: 400 TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS
+        else more than one active file for a required template
+            s -> c: HttpStatus: 400 ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER
+        else INITIATE and a required template has no active file
+            s -> c: HttpStatus: 400 REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND
+        end
+    end
+
+    alt name regex list empty
+        s -> c: HttpStatus: 400 NAME_VALIDATION_LIST_EMPTY
+    else name does not match MicroplanNamingRegex
+        s -> c: HttpStatus: 400 NAME_VALIDATION_FAILED
+    end
+    alt RequestInfo.userInfo missing
+        s -> c: HttpStatus: 400 USERINFO_MISSING
+    end
+    alt additionalDetails.vehicleIds not in MDMS
+        s -> c: HttpStatus: 400 VEHICLE_ID_NOT_FOUND_IN_MDMS
+    end
+end
+
+group enrichUpdate
+    s -> s: Generate ids for new files, assumptions,\noperations and resourceMapping
+    s -> s: Inactive file => its resourceMapping entries set inactive
+    s -> s: Update auditDetails (lastModifiedBy, lastModifiedTime)
+    s -> s: If operations and assumptions present:\nexecutionOrder = 1..n for active operations
+end
+
+group validateWorkflow
+    alt workflow.action == APPROVE_CENSUS_DATA
+        s -> cs: /census-service/_search (tenantId, source = planConfigId)
+        activate cs
+        cs -> s: Census, TotalCount, StatusCount
+        deactivate cs
+        alt no census records
+            s -> c: HttpStatus: 400 NO_CENSUS_FOUND_FOR_GIVEN_DETAILS
+        else StatusCount[VALIDATED] != TotalCount
+            s -> c: HttpStatus: 400 CANNOT_APPROVE_CENSUS_DATA
+        end
+    else workflow.action == FINALIZE_CATCHMENT_MAPPING
+        s -> cs: /census-service/_search (tenantId, source)
+        activate cs
+        cs -> s: TotalCount
+        deactivate cs
+        s -> cs: /census-service/_search (tenantId, source, facilityAssigned = true)
+        activate cs
+        cs -> s: TotalCount
+        deactivate cs
+        alt no census records
+            s -> c: HttpStatus: 400 NO_CENSUS_FOUND_FOR_GIVEN_DETAILS
+        else counts differ
+            s -> c: HttpStatus: 400 CANNOT_FINALIZE_CATCHMENT_MAPPING
+        end
+    else workflow.action == APPROVE_ESTIMATIONS
+        s -> db: Plan search (tenantId, planConfigurationId)\n+ COUNT + status count GROUP BY status
+        activate db
+        db -> s: Plans, TotalCount, StatusCount
+        deactivate db
+        s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?tenantId&businessServices=PLAN_ESTIMATION
+        activate wf
+        wf -> s: BusinessService states
+        deactivate wf
+        alt business service not found
+            s -> c: HttpStatus: 400 NO_BUSINESS_SERVICE_DATA_FOUND
+        else StatusCount[VALIDATED] != TotalCount
+            s -> c: HttpStatus: 400 CANNOT_APPROVE_ESTIMATIONS
+        end
+    end
+end
+
+opt workflow present in request
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(businessService PLAN_CONFIGURATION, moduleName plan-service,\naction, comment, documents, assignes from request)
+    activate wf
+    alt workflow transition fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 WORKFLOW_INTEGRATION_ERROR
+    else success
+        wf -> s: ProcessInstance
+        deactivate wf
+        s -> s: status = processInstances[0].state.state
+    end
+end
+
+s -> k: PlanConfigurationRequest /plan-config-update-topic
+activate k
+s -> c: HttpStatus: 202 PlanConfiguration
+deactivate s
+
+group async
+    prs -> k: Consume /plan-config-update-topic
+    activate prs
+    prs -> db: UPDATE plan_configuration SET tenant_id, name, campaign_id,\nstatus, last_modified_by, last_modified_time, additional_details
+    activate db
+    deactivate db
+    prs -> db: UPSERT (ON CONFLICT id) plan_configuration_files, _assumptions,\n_operations, _mapping
+    activate db
+    deactivate db
+    prs -> db: DELETE FROM plan_configuration_files / _assumptions / _operations\nWHERE id = ? AND active = false
+    activate db
+    deactivate db
+    deactivate prs
+    rg -> k: Consume /plan-config-update-topic
+    activate rg
+    deactivate rg
+end
+deactivate k
+
+note over s
+    Unlike create, update does not force active = true for
+    new child entries and does not check name duplicates.
+    Plan config existence is checked by id only (no tenantId).
+end note
+
+@enduml

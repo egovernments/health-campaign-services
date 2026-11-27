@@ -1,0 +1,65 @@
+@startuml
+title Health Notification - Cache Refresh
+!theme vibrant
+participant Client as c
+participant HealthNotificationService as s
+participant InMemoryCache as mc
+participant MdmsService as mdms
+participant LocalizationService as ls
+participant HandleErrorMethod as he
+
+c -> s : POST /health-notification-service/notification/v1/_cache/refresh
+activate s
+note right
+    No request body, no RequestInfo and no validation.
+    tenantId = state.level.tenant.id (ba)
+end note
+
+group loadAndCacheMdmsNotificationConfigs (state tenant)
+    s -> mdms: POST /mdms-v2/v2/_search\n(schemaCode HCM-NOTIFICATION-CONFIG.NotificationConfig,\ntenantId = state tenant, limit 100000, offset 0, no filters)
+    activate mdms
+    alt MDMS call fails
+        mdms -> s: Error
+        s -> he: CustomException MDMS_FETCH_ALL_ERROR\nwrapped as MDMS_CACHE_ERROR
+        activate he
+        he -> c: HttpStatus: 400 MDMS_CACHE_ERROR
+        deactivate he
+    else success
+        mdms -> s: MdmsV2Response (mdms[])
+        deactivate mdms
+    end
+    alt no configs returned
+        s -> s: Log warn, nothing cached
+    else configs returned
+        loop for each config having data.campaignType
+            s -> mc: put "<tenantId>_<campaignType>" -> MdmsV2Data
+        end
+    end
+end
+
+group loadAndCacheLocalizationMessages
+    loop for each locale in egov.localization.supported.locales (en_NG, fr_NG)
+        s -> ls: POST /localization/messages/v1/_search\n?locale=<locale>&tenantId=<state tenant>&module=health-notification
+        activate ls
+        ls -> s: messages[] (code, message)
+        deactivate ls
+        s -> mc: put "<tenantId>_<locale>_<code>" -> message
+        note right
+            Failure for a locale is logged and
+            skipped (LOCALIZATION_CACHE_ERROR is
+            swallowed), so it never fails the API
+        end note
+    end
+end
+
+s -> c: HttpStatus: 200 { "status": "Cache refreshed successfully" }
+deactivate s
+
+note over s, mc
+    The cache is a static ConcurrentHashMap per pod (no Redis).
+    Entries are only overwritten, never evicted, so removed MDMS configs
+    or localization codes stay cached until restart. The same load runs
+    on startup (@PostConstruct); refresh only affects the pod that served it.
+end note
+
+@enduml

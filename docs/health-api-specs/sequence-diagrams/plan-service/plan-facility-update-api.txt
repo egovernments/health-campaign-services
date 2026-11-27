@@ -1,0 +1,121 @@
+@startuml
+title Plan Service - Plan Facility Update
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant MdmsService as mdms
+participant ProjectFactory as pf
+participant BoundaryService as bs
+participant CensusService as cs
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /plan-service/plan/facility/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(same constraints as create)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validatePlanFacilityUpdate
+    s -> db: SELECT FROM plan_facility_linkage WHERE id IN (?)
+    activate db
+    db -> s: Existing plan facility
+    deactivate db
+    alt plan facility not found
+        s -> c: HttpStatus: 400 INVALID_PLAN_FACILITY_ID
+    end
+    s -> s: initiallySetServiceBoundaries = serviceBoundaries from DB
+
+    s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = <root tenant>
+    activate db
+    db -> s: Plan configuration
+    deactivate db
+    alt plan configuration not found
+        s -> c: HttpStatus: 400 INVALID_PLAN_CONFIG_ID
+    end
+
+    group validateCampaignDetails
+        s -> mdms: /mdms-v2/v1/_search (root tenant)
+        activate mdms
+        mdms -> s: MdmsRes
+        deactivate mdms
+        alt MdmsRes empty
+            s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+        end
+        s -> pf: /project-factory/v1/project-type/search\n(ids = [plan configuration campaignId])
+        activate pf
+        pf -> s: CampaignDetails (boundaries, hierarchyType)
+        deactivate pf
+        alt no campaign details
+            s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+        else JSONPath on HierarchySchema fails
+            s -> c: HttpStatus: 400 JSONPATH_ERROR
+        else residingBoundary not a campaign boundary
+            s -> c: HttpStatus: 400 INVALID_RESIDING_BOUNDARY
+        else duplicate serviceBoundaries
+            s -> c: HttpStatus: 400 DUPLICATE_SERVICE_BOUNDARY
+        else service boundary not a lowest-hierarchy campaign boundary
+            s -> c: HttpStatus: 400 INVALID_SERVICE_BOUNDARY
+        end
+        s -> bs: /boundary-service/boundary-relationships/_search\n?codes=<residingBoundary>&includeParents=true&includeChildren=false
+        activate bs
+        bs -> s: TenantBoundary
+        deactivate bs
+        s -> s: Enrich boundaryAncestralPath and jurisdictionMapping
+    end
+end
+
+group enrichPlanFacilityUpdate
+    s -> s: Update auditDetails
+    s -> s: Changed boundaries = initial - current (if fewer now)\nor current - initial (otherwise)
+    opt changed boundaries not empty
+        s -> cs: /census-service/_search (tenantId, source = planConfigurationId,\nareaCodes = changed boundaries, limit = count)
+        activate cs
+        cs -> s: Census
+        deactivate cs
+        alt no census found (or call failed)
+            s -> c: HttpStatus: 400 NO_CENSUS_FOUND_FOR_GIVEN_DETAILS
+        end
+        s -> s: Sum confirmed target population per boundary\n(CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION_AGE_3TO11 +\n_AGE_12TO59, else CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION)
+        s -> s: additionalDetails.servingPopulation +/- sum\n(subtract when boundaries removed, add when added)
+    end
+end
+
+s -> k: PlanFacilityRequestDTO (incl. initiallySetServiceBoundaries)\n/update-plan-facility
+activate k
+s -> c: HttpStatus: 202 PlanFacility
+deactivate s
+
+group async
+    prs -> k: Consume /update-plan-facility
+    activate prs
+    prs -> db: UPDATE plan_facility_linkage SET residing_boundary, service_boundaries,\nadditional_details, active, last_modified_by, last_modified_time\nWHERE id = ?
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /update-plan-facility
+    activate idx
+    idx -> el: Store PlanFacility /plan-facility-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+    cs -> k: Consume /update-plan-facility
+    activate cs
+    cs -> cs: Set / clear facility on census of added / removed boundaries
+    deactivate cs
+end
+deactivate k
+
+note over s
+    The serving-population delta assumes boundaries were only added or only
+    removed; a swap with equal list sizes is treated as an addition.
+    If additionalDetails.servingPopulation is missing, a NullPointerException
+    is returned as HTTP 400.
+end note
+
+@enduml

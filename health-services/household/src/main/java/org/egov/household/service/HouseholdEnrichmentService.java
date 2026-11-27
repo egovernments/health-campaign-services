@@ -1,6 +1,6 @@
 package org.egov.household.service;
 
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Address;
 import org.egov.common.models.household.Household;
@@ -71,12 +71,12 @@ public class HouseholdEnrichmentService {
         Map<String, Household> hMap = getIdToObjMap(households);
         log.info("enriching households for update");
         enrichForUpdate(hMap, request);
-        log.info("completed update method for households {}", households);
+        log.info("completed update method for {} households", households.size());
 
     }
 
     public void delete(List<Household> households, HouseholdBulkRequest request) {
-        log.info("starting delete method for households {}", households);
+        log.info("starting delete method for {} households", households.size());
         for (Household household : households) {
             if (household.getIsDeleted()) {
                 log.info("updating audit details for deleted households");
@@ -86,6 +86,6 @@ public class HouseholdEnrichmentService {
                 household.setRowVersion(household.getRowVersion() + 1);
             }
         }
-        log.info("completed delete method for households {}", households);
+        log.info("completed delete method for {} households", households.size());
     }
 }

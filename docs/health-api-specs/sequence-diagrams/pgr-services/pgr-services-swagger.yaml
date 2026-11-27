@@ -1,0 +1,780 @@
+openapi: 3.0.3
+info:
+  title: PGR Services API
+  description: |
+    Public Grievance Redressal (complaints) service, v2 APIs, with egov-workflow-v2
+    integration (business service `PGR`), MDMS service definitions (`RAINMAKER-PGR.ServiceDefs`),
+    HRMS department checks, egov-user upsert and idgen for `serviceRequestId`.
+    Source: core-services/pgr-services (Java / Spring Boot 3.2).
+
+    Create / update persist asynchronously through Kafka (`save-pgr-request`,
+    `update-pgr-request`); the API returns 200 before the record is stored.
+
+    Search criteria for `_search`, `_plainsearch` and `_count` are bound with
+    `@ModelAttribute`, i.e. they are **query parameters**; the body carries only `RequestInfo`.
+
+    Errors are returned by the DIGIT tracer as HTTP 400 with an `Errors` array
+    (CustomException, bean validation, downstream 4xx). Unhandled exceptions
+    (e.g. NullPointerException on missing `workflow`, `auditDetails` or
+    `RequestInfo.userInfo`) are returned as HTTP 500.
+  version: 1.2.1
+servers:
+  - url: https://{host}/pgr-services
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Request
+  - name: Mock
+
+paths:
+  /v2/request/_create:
+    post:
+      tags: [Request]
+      summary: Raise a complaint
+      description: |
+        Validation order: bean validation, MDMS ServiceDefs fetch, user data (collected,
+        thrown last), source (`whatsapp,web,mobile,RB Bot`), hierarchyType, serviceCode in MDMS,
+        department of `workflow.hrmsAssignes` (HRMS) vs MDMS department (only when
+        `workflow.assignes` is non empty).
+
+        Enrichment: for CITIZEN / EMPLOYEE callers `accountId` is set to the logged-in
+        user uuid and `service.user` is replaced by the user-service record of that uuid;
+        otherwise the citizen is searched by mobile number and created / updated.
+        `id`, `address.id`, `serviceRequestId` (idgen `pgr.servicerequestid`) are generated.
+        `auditDetails` is NOT generated, the client value is persisted.
+
+        Then the workflow transition is called, `applicationStatus` is set from the
+        workflow state and the request is pushed to `save-pgr-request` and
+        `transformer-save-pgr-service`.
+      operationId: requestCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequest'
+            example:
+              RequestInfo:
+                apiId: Rainmaker
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  type: EMPLOYEE
+                  tenantId: mz
+              service:
+                tenantId: mz
+                serviceCode: SyncNotWorking
+                hierarchyType: ADMIN
+                description: Sync is not working
+                source: mobile
+                user:
+                  name: John
+                  mobileNumber: "9999999999"
+                  type: EMPLOYEE
+                address:
+                  locality:
+                    code: MZ_LOCALITY_01
+                  geoLocation:
+                    latitude: -25.9
+                    longitude: 32.5
+                auditDetails:
+                  createdBy: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  createdTime: 1695889012604
+                  lastModifiedBy: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  lastModifiedTime: 1695889012604
+              workflow:
+                action: CREATE
+      responses:
+        '200':
+          description: Accepted (persisted asynchronously)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /v2/request/_update:
+    post:
+      tags: [Request]
+      summary: Update / transition a complaint
+      description: |
+        Validation order: MDMS fetch, source, hierarchyType, serviceCode in MDMS, department
+        (when `workflow.assignes` is non empty), REOPEN rules (citizen must own the complaint;
+        `now - service.auditDetails.lastModifiedTime` <= `pgr.complain.idle.time` = 10 days,
+        taken from the request body), record exists by `service.id` (`INVALID_UPDATE`).
+        User data is not validated on update.
+
+        Enrichment: `lastModifiedBy` = caller uuid, `lastModifiedTime` = now (createdBy /
+        createdTime copied from the request), user re-fetched / upserted. Workflow transition
+        sets `applicationStatus`, then the request is pushed to `update-pgr-request`.
+      operationId: requestUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequest'
+      responses:
+        '200':
+          description: Accepted (persisted asynchronously)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /v2/request/_search:
+    post:
+      tags: [Request]
+      summary: Search complaints
+      description: |
+        Requires `tenantId` when mobileNumber / serviceRequestId / ids / serviceCode is passed.
+        EMPLOYEE cannot search with empty criteria. Allowed params per user type:
+        CITIZEN `serviceRequestId,ids,mobileNumber,applicationStatus,tenantId`;
+        EMPLOYEE / SYSTEM additionally `serviceCode`. Other user types are rejected.
+
+        With empty criteria a CITIZEN / EMPLOYEE search is defaulted to
+        `mobileNumber = userInfo.userName`. `mobileNumber` is resolved to user uuids
+        (egov-user) and matched on `accountId`. Default limit 100, max 200, offset 0.
+        Each result is enriched with `service.user` (egov-user) and `workflow`
+        (workflow process search) and sorted by `createdTime` DESC.
+
+        The response also carries `complaintsResolved` (CLOSEDAFTERRESOLUTION in the last
+        `egov.dynamicdata.period` = 30 days), `averageResolutionTime` (days, -1 if none) for
+        the given `tenantId`, and `complaintTypes` (static `egov.complaints.category` = 13).
+      operationId: requestSearch
+      parameters:
+        - $ref: '#/components/parameters/tenantId'
+        - $ref: '#/components/parameters/serviceCode'
+        - $ref: '#/components/parameters/hierarchyType'
+        - $ref: '#/components/parameters/applicationStatus'
+        - $ref: '#/components/parameters/mobileNumber'
+        - $ref: '#/components/parameters/serviceRequestId'
+        - $ref: '#/components/parameters/ids'
+        - $ref: '#/components/parameters/locality'
+        - $ref: '#/components/parameters/sortBy'
+        - $ref: '#/components/parameters/sortOrder'
+        - $ref: '#/components/parameters/fromDate'
+        - $ref: '#/components/parameters/toDate'
+        - $ref: '#/components/parameters/slaDeltaMaxLimit'
+        - $ref: '#/components/parameters/slaDeltaMinLimit'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /v2/request/_plainsearch:
+    post:
+      tags: [Request]
+      summary: Plain search across tenants
+      description: |
+        Requires `tenantIds` (`TENANT_ID_LIST_EMPTY`). Filters `ser.tenantId IN (tenantIds)`
+        plus the other criteria; `tenantId` and `mobileNumber` are ignored. No user-type checks.
+        Default limit 100, max 200, offset 0. Results are enriched with user and workflow.
+        `complaintsResolved`, `averageResolutionTime`, `complaintTypes` are always 0.
+      operationId: requestPlainSearch
+      parameters:
+        - name: tenantIds
+          in: query
+          required: true
+          schema:
+            type: array
+            items: { type: string }
+          style: form
+          explode: false
+        - $ref: '#/components/parameters/serviceCode'
+        - $ref: '#/components/parameters/hierarchyType'
+        - $ref: '#/components/parameters/applicationStatus'
+        - $ref: '#/components/parameters/serviceRequestId'
+        - $ref: '#/components/parameters/ids'
+        - $ref: '#/components/parameters/locality'
+        - $ref: '#/components/parameters/sortBy'
+        - $ref: '#/components/parameters/sortOrder'
+        - $ref: '#/components/parameters/fromDate'
+        - $ref: '#/components/parameters/toDate'
+        - $ref: '#/components/parameters/slaDeltaMaxLimit'
+        - $ref: '#/components/parameters/slaDeltaMinLimit'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /v2/request/_count:
+    post:
+      tags: [Request]
+      summary: Count complaints
+      description: |
+        Wraps the search query in `select count(*)`. No validation or enrichment is
+        applied: no user-type / allowed-param checks, `mobileNumber` is ignored, and
+        limit / offset are applied only if passed (so a passed `limit` caps the count).
+      operationId: requestCount
+      parameters:
+        - $ref: '#/components/parameters/tenantId'
+        - $ref: '#/components/parameters/serviceCode'
+        - $ref: '#/components/parameters/hierarchyType'
+        - $ref: '#/components/parameters/applicationStatus'
+        - $ref: '#/components/parameters/serviceRequestId'
+        - $ref: '#/components/parameters/ids'
+        - $ref: '#/components/parameters/locality'
+        - $ref: '#/components/parameters/fromDate'
+        - $ref: '#/components/parameters/toDate'
+        - $ref: '#/components/parameters/slaDeltaMaxLimit'
+        - $ref: '#/components/parameters/slaDeltaMinLimit'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      responses:
+        '200':
+          description: Count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /mock/requests/_create:
+    post:
+      tags: [Mock]
+      summary: Static mock create response
+      description: Returns the content of classpath `mockData.json`. The body is not read.
+      operationId: mockCreate
+      responses:
+        '200':
+          description: Static mock data
+          content:
+            application/json:
+              schema: { type: object }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /mock/requests/_search:
+    post:
+      tags: [Mock]
+      summary: Static mock search response
+      description: Body (RequestInfo) and query params are validated but ignored; returns `mockData.json`.
+      operationId: mockSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      responses:
+        '200':
+          description: Static mock data
+          content:
+            application/json:
+              schema: { type: object }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /mock/requests/_update:
+    post:
+      tags: [Mock]
+      summary: Static mock update response
+      description: Returns the content of classpath `mockData.json`. The body is not read.
+      operationId: mockUpdate
+      responses:
+        '200':
+          description: Static mock data
+          content:
+            application/json:
+              schema: { type: object }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /mock/requests/_test:
+    post:
+      tags: [Mock]
+      summary: HRMS department lookup (debug)
+      description: Calls egov-hrms employee search for `uuids` and returns their assignment departments.
+      operationId: mockTest
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: uuids
+          in: query
+          required: true
+          schema:
+            type: array
+            items: { type: string }
+          style: form
+          explode: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfoWrapper'
+      responses:
+        '200':
+          description: Department codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  parameters:
+    tenantId:
+      name: tenantId
+      in: query
+      description: State level tenant (no dot) matches `tenantid LIKE '<tenantId>%'`, otherwise exact match.
+      schema: { type: string }
+    serviceCode:
+      name: serviceCode
+      in: query
+      schema:
+        type: array
+        items: { type: string }
+      style: form
+      explode: false
+    hierarchyType:
+      name: hierarchyType
+      in: query
+      description: Optional exact filter on `ser.hierarchytype`.
+      schema: { type: string }
+    applicationStatus:
+      name: applicationStatus
+      in: query
+      schema:
+        type: array
+        items: { type: string }
+      style: form
+      explode: false
+    mobileNumber:
+      name: mobileNumber
+      in: query
+      description: Resolved to user uuids via egov-user and matched on `accountId`.
+      schema: { type: string }
+    serviceRequestId:
+      name: serviceRequestId
+      in: query
+      schema: { type: string }
+    ids:
+      name: ids
+      in: query
+      schema:
+        type: array
+        items: { type: string }
+      style: form
+      explode: false
+    locality:
+      name: locality
+      in: query
+      description: Matches `eg_pgr_address_v2.locality` (boundary code).
+      schema:
+        type: array
+        items: { type: string }
+      style: form
+      explode: false
+    sortBy:
+      name: sortBy
+      in: query
+      description: Default ORDER BY createdtime.
+      schema:
+        type: string
+        enum: [locality, applicationStatus, serviceRequestId]
+    sortOrder:
+      name: sortOrder
+      in: query
+      description: Anything other than ASC sorts DESC.
+      schema:
+        type: string
+        enum: [ASC, DESC]
+    fromDate:
+      name: fromDate
+      in: query
+      description: Epoch millis on createdtime; toDate defaults to now.
+      schema: { type: integer, format: int64 }
+    toDate:
+      name: toDate
+      in: query
+      description: Epoch millis. Not allowed without fromDate (INVALID_SEARCH).
+      schema: { type: integer, format: int64 }
+    slaDeltaMaxLimit:
+      name: slaDeltaMaxLimit
+      in: query
+      description: Alone - age (now - createdtime) > value ("escalated"); with slaDeltaMinLimit - age between min and max.
+      schema: { type: integer, format: int64 }
+    slaDeltaMinLimit:
+      name: slaDeltaMinLimit
+      in: query
+      description: Only used together with slaDeltaMaxLimit.
+      schema: { type: integer, format: int64 }
+    limit:
+      name: limit
+      in: query
+      description: Default 100, capped at 200 (search / plainsearch).
+      schema: { type: integer }
+    offset:
+      name: offset
+      in: query
+      description: Default 0 (search / plainsearch).
+      schema: { type: integer }
+
+  responses:
+    BadRequest:
+      description: Validation or business error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: INVALID_SERVICECODE
+                message: "The service code: XYZ is not present in MDMS"
+    ServerError:
+      description: Unhandled exception (e.g. NullPointerException on missing workflow / auditDetails / userInfo)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId:
+          type: string
+          description: Locale for notifications is read from the part after `|` (default en_IN).
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      description: Required in practice; `type` drives validation, enrichment and search permissions.
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        mobileNumber: { type: string }
+        emailId: { type: string }
+        type:
+          type: string
+          enum: [CITIZEN, EMPLOYEE, SYSTEM]
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    RequestInfoWrapper:
+      type: object
+      required: [RequestInfo]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status: { type: string, example: successful }
+
+    ServiceRequest:
+      type: object
+      required: [RequestInfo, service]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        service:
+          $ref: '#/components/schemas/Service'
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+
+    Service:
+      type: object
+      required: [tenantId, serviceCode, hierarchyType, source, address]
+      properties:
+        active:
+          type: boolean
+          default: true
+          description: Set to true on create; not written by the persister (DB default TRUE).
+        user:
+          $ref: '#/components/schemas/User'
+        id:
+          type: string
+          readOnly: true
+          description: Generated UUID on create; required to identify the record on update.
+        tenantId: { type: string }
+        serviceCode:
+          type: string
+          description: Must exist in MDMS RAINMAKER-PGR.ServiceDefs (active).
+        hierarchyType:
+          type: string
+          description: Mandatory (non blank). Note - not persisted by the health-config persister.
+        serviceRequestId:
+          type: string
+          readOnly: true
+          description: Generated by idgen (pgr.servicerequestid).
+        description: { type: string }
+        accountId:
+          type: string
+          description: Overwritten with the caller uuid for CITIZEN / EMPLOYEE on create.
+        rating:
+          type: integer
+          minimum: 0
+          maximum: 5
+        additionalDetail:
+          type: object
+          description: Free JSON; its toString() must be <= 600 characters.
+        applicationStatus:
+          type: string
+          readOnly: true
+          description: Set from the workflow state (e.g. PENDINGFORASSIGNMENT, PENDINGATLME, RESOLVED, REJECTED, CLOSEDAFTERRESOLUTION).
+        source:
+          type: string
+          enum: [whatsapp, web, mobile, RB Bot]
+          description: Checked against `allowed.source`.
+        address:
+          $ref: '#/components/schemas/Address'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        selfComplaint: { type: boolean }
+
+    User:
+      type: object
+      description: |
+        Complainant. For CITIZEN / EMPLOYEE callers `name` and `mobileNumber` are mandatory
+        (INVALID_REQUEST). Replaced by the egov-user record in responses.
+      properties:
+        id: { type: integer, format: int64 }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        mobileNumber: { type: string }
+        emailId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        tenantId: { type: string }
+        uuid: { type: string }
+        active: { type: boolean }
+
+    Role:
+      type: object
+      properties:
+        name: { type: string }
+        code: { type: string }
+        tenantId: { type: string }
+        description: { type: string }
+
+    Address:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          readOnly: true
+          description: Set to service.tenantId on create.
+        doorNo: { type: string }
+        plotNo: { type: string }
+        id: { type: string, readOnly: true }
+        landmark: { type: string }
+        city: { type: string }
+        district: { type: string }
+        region: { type: string }
+        state: { type: string }
+        country: { type: string }
+        pincode: { type: string }
+        additionDetails:
+          type: object
+          description: Note the spelling `additionDetails`.
+        buildingName: { type: string }
+        street: { type: string }
+        locality:
+          $ref: '#/components/schemas/Boundary'
+        geoLocation:
+          $ref: '#/components/schemas/GeoLocation'
+
+    Boundary:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: Persisted to eg_pgr_address_v2.locality (NOT NULL).
+        name: { type: string }
+        label: { type: string }
+        latitude: { type: string }
+        longitude: { type: string }
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Boundary'
+        materializedPath: { type: string }
+
+    GeoLocation:
+      type: object
+      properties:
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        additionalDetails: { type: object }
+
+    AuditDetails:
+      type: object
+      description: |
+        Not generated on create - the client value is persisted (createdby / createdtime are
+        NOT NULL in DB). On update lastModifiedBy / lastModifiedTime are overwritten.
+      properties:
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    Workflow:
+      type: object
+      description: Not marked required, but needed for create / update (dereferenced without null check).
+      properties:
+        action:
+          type: string
+          description: Workflow action of business service PGR (e.g. CREATE/APPLY, ASSIGN, REASSIGN, REJECT, RESOLVE, REOPEN, RATE).
+        assignes:
+          type: array
+          items: { type: string }
+          description: Assignee user uuids sent to the workflow; triggers the department check.
+        hrmsAssignes:
+          type: array
+          items: { type: string }
+          description: Employee uuids used for the HRMS department lookup.
+        comments: { type: string }
+        verificationDocuments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+
+    Document:
+      type: object
+      properties:
+        id: { type: string, readOnly: true }
+        documentType: { type: string }
+        fileStoreId: { type: string }
+        documentUid: { type: string }
+        additionalDetails: { type: object }
+
+    ServiceWrapper:
+      type: object
+      required: [service]
+      properties:
+        service:
+          $ref: '#/components/schemas/Service'
+        workflow:
+          $ref: '#/components/schemas/Workflow'
+
+    ServiceResponse:
+      type: object
+      properties:
+        responseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ServiceWrappers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceWrapper'
+        complaintsResolved:
+          type: integer
+          description: Search only (0 elsewhere).
+        averageResolutionTime:
+          type: integer
+          description: Days; search only (0 elsewhere).
+        complaintTypes:
+          type: integer
+          description: Static config value; search only (0 elsewhere).
+
+    CountResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        count: { type: integer }
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: |
+            INVALID_REQUEST, INVALID_SOURCE, INVALID_HIERARCHY_TYPE, JSONPATH_ERROR,
+            INVALID_SERVICECODE, PARSING_ERROR, DEPARTMENT_NOT_FOUND, INVALID_ASSIGNMENT,
+            INVALID_ACTION, INVALID_UPDATE, INVALID_ACCOUNTID, IDGEN ERROR, PARSING ERROR,
+            BUSINESSSERVICE_NOT_FOUND, WORKFLOW_NOT_FOUND, USER_NOT_FOUND, INVALID_SEARCH,
+            INVALID SEARCH, TENANT_ID_LIST_EMPTY, INVALID_TENANT_ID, INVALID_DATE_FORMAT,
+            IllegalArgumentException, FILEPATH_ERROR
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'

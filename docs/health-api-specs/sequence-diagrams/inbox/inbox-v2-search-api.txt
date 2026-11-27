@@ -1,0 +1,169 @@
+@startuml
+title Inbox - V2 Search (ElasticSearch backed inbox)
+!theme vibrant
+participant Client as c
+participant InboxService as s
+participant MDMSService as mdms
+participant WorkflowService as wf
+participant ElasticSearch as el
+
+c -> s : POST /inbox/v2/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(inbox.tenantId @NotNull, inbox.limit @Max(300),\nprocessSearchCriteria.businessService @NotNull)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+note right
+    All errors are mapped by the DIGIT tracer
+    (ExceptionAdvise) to HTTP 400 { ResponseInfo, Errors }.
+    Missing inbox / processSearchCriteria / moduleSearchCriteria
+    are not rejected by @Valid and surface as 400 NullPointerException.
+end note
+
+group validateSearchCriteria (ValidatorDefaultImplementation)
+    s -> mdms: /egov-mdms-service/v1/_search\n(tenantId = state level tenant, module INBOX,\nmaster InboxQueryConfiguration)
+    activate mdms
+    note right
+        @Cacheable "inboxConfiguration" (cache2k,
+        TTL cache.expiry.minutes = 10, capacity 10).
+        JsonPath $.MdmsRes.INBOX.InboxQueryConfiguration
+        [?(@.module == processSearchCriteria.moduleName)]
+    end note
+    alt MDMS call / JsonPath fails
+        mdms -> s: Error
+        s -> c: HttpStatus: 400 CONFIG_ERROR\n(Error in fetching inbox query configuration from MDMS)
+    else no config for moduleName
+        mdms -> s: Empty
+        s -> c: HttpStatus: 400 CONFIG_ERROR\n(Inbox Query Configuration not found in MDMS response)
+    else config found
+        mdms -> s: InboxQueryConfiguration\n(index, allowedSearchCriteria, sortBy, sourceFilterPathList)
+        deactivate mdms
+    end
+    s -> s: Build isMandatory map from allowedSearchCriteria
+    alt a mandatory param is missing in moduleSearchCriteria
+        s -> c: HttpStatus: 400 INVALID_SEARCH_CRITERIA\n(Mandatory fields are missing in the moduleSearchCriteria)
+    end
+    loop each moduleSearchCriteria key (except sortBy / sortOrder)
+        alt key not present in allowedSearchCriteria
+            s -> c: HttpStatus: 400 NullPointerException\n(isMandatoryMap.get(key) unboxing)
+        else mandatory key with null / empty value
+            s -> c: HttpStatus: 400 INVALID_SEARCH_CRITERIA\n(Field cannot be null or empty: <key>)
+        end
+    end
+end
+
+s -> mdms: getConfigFromMDMS(tenantId, moduleName)
+activate mdms
+mdms -> s: InboxQueryConfiguration (served from cache)
+deactivate mdms
+
+s -> s: Hash moduleSearchCriteria values whose\nallowedSearchCriteria.isHashingRequired = true\n(HashService: SHA-256, Base64 URL-safe, local)
+
+group getInboxItems
+    s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?businessServices=<comma separated>&tenantId
+    activate wf
+    note right
+        @Cacheable "businessServices" keyed on the InboxRequest
+        object (no equals/hashCode), so only repeated calls
+        within the same request hit the cache.
+    end note
+    alt workflow call fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 { Errors from workflow }
+    else
+        wf -> s: BusinessServices (states, actions, roles, SLA)
+        deactivate wf
+    end
+    alt response cannot be mapped
+        s -> c: HttpStatus: 400 PARSING_ERROR
+    end
+
+    group enrichActionableStatusesFromRole
+        s -> s: tenantId -> user role codes (RequestInfo.userInfo.roles)
+        s -> s: Actionable states = states whose actions' roles\nintersect user roles for role tenant == inbox.tenantId\n(or FSM_DSO at state level)
+        s -> s: + terminate states if inbox.show.closed.applications = true
+        alt processSearchCriteria.status given
+            s -> s: status = given status UUIDs that are actionable
+        else
+            s -> s: status = all actionable status UUIDs
+        end
+        opt no actionable statuses
+            s -> s: status = []
+        end
+    end
+
+    alt status list is empty
+        s -> s: items = []
+    else
+        s -> s: Build ES query: from = offset, size = limit,\nsort [ sortBy.path : moduleSearchCriteria.sortOrder or defaultOrder ],\n_source = sourceFilterPathList,\nbool.must = moduleSearchCriteria clauses (term / terms / range / wildcard)\n+ tenantId, status, assignee, fromDate, toDate
+        note right
+            Clause path = allowedSearchCriteria.path
+            or Data.<key>.keyword. Operator EQUAL (default):
+            term / terms; GTE / LTE: range; WILDCARD: *value*.
+            Invalid sortOrder -> 400 IllegalArgumentException.
+        end note
+        s -> el: POST <services.esindexer.host><index>/_search\n(Authorization: Basic egov.es.username:password)
+        activate el
+        alt ES call fails
+            el -> s: Error
+            s -> c: HttpStatus: 400 { ES error body }
+        else
+            el -> s: hits
+            deactivate el
+        end
+        s -> s: items[].businessObject = hit._source.Data\n+ serviceSla (days) from state SLA (lastModifiedTime)\nor businessServiceSla (createdTime)
+    end
+end
+
+s -> s: enrichProcessInstanceInInboxItems\n(move businessObject.currentProcessInstance -> ProcessInstance)
+
+alt processSearchCriteria.status is empty
+    s -> s: totalCount = 0, statusMap = [], nearingSlaCount = 0
+else
+    group getTotalApplicationCount
+        s -> el: POST <index>/_count (same bool query, no pagination)
+        activate el
+        el -> s: { count }
+        deactivate el
+        alt response has no "count"
+            s -> c: HttpStatus: 400 INBOX_COUNT_ERR
+        end
+    end
+
+    group getStatusCountMap
+        s -> el: POST <index>/_search\n+ aggs.statusCount.terms.field =\nData.currentProcessInstance.state.uuid.keyword
+        activate el
+        el -> s: aggregations.statusCount.buckets
+        deactivate el
+        s -> s: Keep buckets whose key is an actionable status
+        s -> wf: businessservice/_search (cached for this request)
+        activate wf
+        wf -> s: BusinessServices
+        deactivate wf
+        s -> s: statusMap[] = { count, applicationstatus,\nbusinessservice, statusid, state }
+        note right: statusMap is null when no bucket matches
+    end
+
+    group getApplicationsNearingSlaCount
+        s -> wf: businessservice/_search (cached for this request)
+        activate wf
+        wf -> s: BusinessServices
+        deactivate wf
+        loop each businessService having requested status UUIDs
+            s -> s: status = UUIDs of this businessService\nrange Data.auditDetails.lastModifiedTime\ngte now - (sla - 40% of sla), lte now
+            s -> el: POST <index>/_count
+            activate el
+            el -> s: { count }
+            deactivate el
+            alt response has no "count"
+                s -> c: HttpStatus: 400 INBOX_COUNT_ERR
+            end
+        end
+    end
+end
+
+s -> c: HttpStatus: 200 { totalCount, nearingSlaCount, statusMap, items }
+deactivate s
+
+@enduml

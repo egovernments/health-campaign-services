@@ -1,0 +1,5 @@
+ALTER TABLE HOUSEHOLD ADD COLUMN IF NOT EXISTS clientCreatedBy character varying(64);
+ALTER TABLE HOUSEHOLD ADD COLUMN IF NOT EXISTS clientLastModifiedBy character varying(64);
+
+ALTER TABLE HOUSEHOLD_MEMBER ADD COLUMN IF NOT EXISTS clientCreatedBy character varying(64);
+ALTER TABLE HOUSEHOLD_MEMBER ADD COLUMN IF NOT EXISTS clientLastModifiedBy character varying(64);

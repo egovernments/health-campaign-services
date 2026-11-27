@@ -1,0 +1,137 @@
+@startuml
+title Beneficiary IdGen - ID Pool Generate
+!theme vibrant
+participant Client as c
+participant BeneficiaryIdGen as s
+participant MDMSService as mdms
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+participant GlobalExceptionHandler as he
+
+c -> s : POST /beneficiary-idgen/id/id_pool/_generate
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo required, BatchRequestList required, size >= 1;\neach item: totalCount required and > 0, tenantId required)
+alt request body validation fails
+    s -> he: MethodArgumentNotValidException
+    activate he
+    he -> c: HttpStatus: 400 ErrorRes\n{ Errors: [code: "400 BAD_REQUEST", message: "Invalid input", params: {field: msg}] }
+    deactivate he
+end
+
+alt BatchRequestList null or empty (unreachable, @Size(min = 1) rejects it first)
+    s -> he: CustomException EMPTY REQUEST ("Batch list is empty.")
+    activate he
+    he -> c: HttpStatus: 200 ErrorRes { ResponseInfo.status: FAILED,\nErrors: [code: "400 BAD_REQUEST", message: "Batch list is empty."] }
+    deactivate he
+end
+
+loop for each BatchRequest
+    loop while sent < totalCount
+        s -> s: chunkSize = min(id.pool.generation.max.size (50000),\ntotalCount - sent)
+        s -> k: IDPoolGenerationKafkaRequest {requestInfo, tenantId, chunkSize}\n/id-gen-consumer-bulk-create-topic
+        activate k
+    end
+    s -> s: Add IDPoolCreationResult\n{tenantId, message: "ID Generation is chunked and queued"}
+end
+
+s -> c: HttpStatus: 200 IDPoolGenerationResponse\n{ ResponseInfo, IdPoolCreateResponses }
+deactivate s
+
+group async generation (consumer of /id-gen-consumer-bulk-create-topic)
+    s -> k: Consume IDPoolGenerationKafkaRequest
+    activate s
+    alt chunkSize <= 0
+        s -> s: CustomException INVALID_BATCH_SIZE (logged, message dropped)
+    end
+    group fetchIdFormat
+        alt id.pool.seq.code not configured
+            s -> s: CustomException "Configuration Error:" (logged, message dropped)
+        end
+        s -> mdms: POST /mdms-v2/v1/_search\n(tenant.tenants [code == tenantId],\ncommon-masters.IdFormat [idname == id.pool.number])
+        activate mdms
+        mdms -> s: IdFormat.format, tenants.city.code
+        deactivate mdms
+        alt MDMS call fails / format empty
+            s -> s: ID_NOT_FOUND / IllegalArgumentException\n"ID format cannot be null or empty" (logged, message dropped)
+        end
+        note right
+            idformat.from.mdms=true. If false, the format is read with
+            SELECT format FROM id_generator WHERE idname=? and tenantid=?
+        end note
+    end
+    s -> s: adjustBatchSizeIfRandom: if format contains [d{n}]\nsize = ceil(chunkSize * (1 + idgen.random.buffer (5) / 100))
+
+    group generateIdFromIdRequest
+        s -> mdms: POST /mdms-v2/v1/_search (IdFormat fetched again)
+        activate mdms
+        mdms -> s: IdFormat.format
+        deactivate mdms
+        s -> s: Replace [tenantid], [tenant_id], [TENANT_ID]
+        loop for each [token] in format, for each of the count ids
+            alt token starts with "seq"
+                s -> db: SELECT NEXTVAL('<seq>') FROM GENERATE_SERIES(1, count)\n(once per sequence)
+                activate db
+                alt sequence missing (SQLState 42P01) and autocreate.new.seq=true
+                    db -> s: BadSqlGrammarException
+                    s -> db: CREATE SEQUENCE <seq>
+                    s -> db: SELECT NEXTVAL('<seq>') FROM GENERATE_SERIES(1, count)
+                    db -> s: Sequence numbers
+                else other SQL error
+                    db -> s: Error
+                    s -> s: SEQ_NUMBER_ERROR / ERROR_CREATING_SEQ
+                else success
+                    db -> s: Sequence numbers
+                end
+                deactivate db
+                s -> s: Zero-pad to id.pool.padding.length (12)
+            else token starts with "fy"
+                s -> s: Financial year (INVALID_FORMAT on bad pattern)
+            else token starts with "cy"
+                s -> s: Current date in Asia/Kolkata (INVALID_FORMAT on bad pattern)
+            else token starts with "city"
+                s -> mdms: POST /mdms-v2/v1/_search (city code, once per request)
+                activate mdms
+                mdms -> s: tenants.city.code
+                deactivate mdms
+                alt city code null
+                    s -> s: PARSING ERROR
+                end
+            else any other token (e.g. d{4})
+                s -> s: Random digits of length n (INVALID_REGEX)
+            end
+        end
+    end
+
+    loop every id.pool.generation.max.records.per.persist.batch (1000) ids
+        s -> k: { idPool: [IdRecord {id, tenantId, rowVersion 1,\nauditDetails.createdBy = userInfo.uuid, createdTime}] }\n/save-in-id-pool
+        alt publish fails
+            s -> s: Log "Kafka publish failed" (batch lost, no retry)
+        end
+    end
+    deactivate s
+end
+
+group async persister
+    prs -> k: Consume /save-in-id-pool
+    activate prs
+    prs -> db: INSERT INTO id_pool (id, status 'UNASSIGNED', tenantId,\nadditionalFields, audit, rowVersion)\nON CONFLICT (id) DO NOTHING
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s, he
+    Every error inside the async group is caught in handleAsyncIdPoolRequest
+    and only logged ("Error in async ID pool generation"); the client is
+    never informed. Duplicate random IDs are silently skipped by ON CONFLICT,
+    so the pool size can differ from the requested totalCount.
+    The service GlobalExceptionHandler has no @ResponseStatus for non-validation
+    exceptions, so CustomExceptions come back as HTTP 200 with the original
+    error code replaced by "400 BAD_REQUEST" (assuming it takes precedence
+    over the tracer ExceptionAdvise; both have the lowest order).
+end note
+
+@enduml

@@ -1,0 +1,25 @@
+@startuml
+title Inbox - V1 Elastic Search (stub)
+!theme vibrant
+participant Client as c
+participant InboxService as s
+
+c -> s : POST /inbox/v1/elastic/_search
+activate s
+
+s -> s: Validate request body (@Valid InboxElasticSearchRequest)\n(InboxElasticSearchCriteria.indexKey @NotNull,\ntenantId @NotNull, limit @Max(300))
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+s -> s: data = null
+note right
+    The controller does not call ElasticSearchService
+    (autowiring is commented out). No downstream call
+    is made and the response body is empty.
+end note
+
+s -> c: HttpStatus: 200 (empty body)
+deactivate s
+
+@enduml

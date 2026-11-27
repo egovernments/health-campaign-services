@@ -1,0 +1,94 @@
+@startuml
+title Worker Registry - Search
+!theme vibrant
+participant Client as c
+participant WorkerRegistry as s
+participant EncryptionService as enc
+participant MDMSService as mdms
+queue Kafka as k
+database Database as db
+participant HandleErrorMethod as he
+
+c -> s : POST /worker/v1/_search
+activate s
+
+alt workerSearch null OR workerSearch.tenantId null
+    s -> he: CustomException
+    he -> c: HttpStatus: 400 INVALID_REQUEST (TenantId is required for search)
+end
+
+s -> enc: /egov-enc-service/crypto/v1/_encrypt\n(WorkerSearchEncrypt on criteria, e.g. name)
+activate enc
+alt encryption fails
+    enc -> s: Error
+    s -> c: HttpStatus: 400 ENCRYPTION_ERROR / UNKNOWN_ERROR
+else
+    enc -> s: Encrypted WorkerSearch
+    deactivate enc
+end
+
+opt individualId filter provided
+    s -> db: SELECT * FROM <schema>.eg_hcm_worker_individual_map\nWHERE individualId IN (...) AND tenantId = ? AND isDeleted = false
+    activate db
+    db -> s: Worker-individual maps
+    deactivate db
+    alt InvalidTenantIdException
+        s -> c: HttpStatus: 400 INVALID_TENANT_EXCEPTION
+    end
+    alt no matching worker
+        s -> c: HttpStatus: 200 WorkerResponse { workers: [] }
+    end
+    s -> s: If id filter empty, id = mapped workerIds
+end
+
+s -> db: SELECT * FROM <schema>.eg_hcm_worker_registry\nWHERE tenantId = ? AND isDeleted = false\n[AND id IN (...)] [AND name = <encrypted name>]\nORDER BY createdTime DESC
+activate db
+db -> s: Workers (encrypted)
+deactivate db
+note right
+    No limit / offset: all matching rows are returned
+end note
+alt InvalidTenantIdException
+    s -> c: HttpStatus: 400 INVALID_TENANT_EXCEPTION
+end
+
+opt individualId filter NOT provided
+    s -> db: SELECT * FROM <schema>.eg_hcm_worker_individual_map\nWHERE workerId IN (<request id filter>) AND tenantId = ? AND isDeleted = false
+    activate db
+    db -> s: Worker-individual maps
+    deactivate db
+    note right
+        Uses the request's id filter, not the ids of the workers
+        found. A search by tenantId / name only therefore returns
+        workers with empty individualIds; an empty id list ([])
+        produces "IN ()" and fails with a SQL error (400).
+    end note
+end
+
+s -> s: Set individualIds on each worker from the map
+
+opt any worker name is cipher text
+    s -> enc: /egov-enc-service/crypto/v1/_decrypt (WorkerDecrypt, purpose = search)
+    activate enc
+    alt decryption fails
+        enc -> s: Error
+        s -> c: HttpStatus: 400 DECRYPTION_SERVICE_ERROR / UNKNOWN_ERROR
+    else
+        enc -> s: Decrypted workers
+        deactivate enc
+    end
+    s -> k: Decrypt audit /audit-logs
+    activate k
+    deactivate k
+end
+
+s -> c: HttpStatus: 200 WorkerResponse { responseInfo, workers }
+deactivate s
+
+note over enc, mdms
+    Encryption / decryption policies are read from
+    MDMS DataSecurity.SecurityPolicy by enc-client.
+    No persister / indexer config exists for /audit-logs.
+end note
+
+@enduml

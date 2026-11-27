@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: Health Notification Service API
+  description: |
+    Dispatches health campaign notifications. The service is primarily Kafka driven
+    (project task -> scheduled post-distribution SMS, stock / HF referral -> push
+    notifications, cron scheduler -> SMS message hand-off). Its HTTP surface is limited
+    to an in-memory cache refresh and a stock push-notification simulator.
+    Source: health-services/health-notification-service (Java / Spring Boot).
+
+    Neither endpoint reads RequestInfo or performs authorisation checks.
+    Errors thrown as `CustomException` are returned by the DIGIT tracer as HTTP 400
+    with an `Errors` array.
+  version: 1.0.0
+servers:
+  - url: https://{host}/health-notification-service
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Cache
+  - name: Test
+
+paths:
+  /notification/v1/_cache/refresh:
+    post:
+      tags: [Cache]
+      summary: Reload MDMS notification configs and localization messages
+      description: |
+        Takes no request body. For the state-level tenant (`state.level.tenant.id`):
+        1. Calls MDMS v2 `/mdms-v2/v2/_search` for schema
+           `HCM-NOTIFICATION-CONFIG.NotificationConfig` (no filters, limit 100000) and caches
+           each config by `<tenantId>_<data.campaignType>`.
+        2. For every locale in `egov.localization.supported.locales` calls
+           `/localization/messages/v1/_search?module=health-notification` and caches each
+           message by `<tenantId>_<locale>_<code>`. Per-locale failures are logged and ignored.
+
+        The cache is a static in-memory map of the pod that serves the request (no Redis);
+        entries are overwritten but never evicted.
+      operationId: cacheRefresh
+      responses:
+        '200':
+          description: Cache refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheRefreshResponse'
+        '400':
+          description: MDMS fetch failed (`MDMS_CACHE_ERROR`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                ResponseInfo: null
+                Errors:
+                  - code: MDMS_CACHE_ERROR
+                    message: "Error while loading and caching MDMS notification configs: ..."
+
+  /test/v1/stock/_notify:
+    post:
+      tags: [Test]
+      summary: Simulate the stock push-notification flow
+      description: |
+        Diagnostic endpoint. Accepts the raw stock Kafka payload (a JSON array of stock
+        records) and runs each record with `additionalFields.schema == "Stock"` through
+        `StockNotificationAdapter` and `NotificationProcessorService`, which really publishes
+        to `egov.core.notification.push`.
+
+        Event type is derived from `additionalFields.fields[key=stockEntryType]` and
+        `additionalFields.fields[key=status]`:
+        ISSUED + IN_TRANSIT / ACCEPTED / REJECTED -> STOCK_ISSUE / STOCK_RECEIVE / STOCK_ISSUE_REJECT
+        `_PUSH_NOTIFICATION`; RETURNED + IN_TRANSIT / ACCEPTED / REJECTED -> STOCK_REVERSE_ISSUE /
+        STOCK_REVERSE_ACCEPT / STOCK_REVERSE_REJECT `_PUSH_NOTIFICATION`; legacy RECEIPT,
+        RETURN_ACCEPTED, RETURN_REJECTED are also mapped; DAMAGED produces no event.
+        The MDMS config used is campaignType `PUSH-NOTIFICATION`.
+
+        Although documented as "hns-local profile only", the controller has no `@Profile`
+        annotation and is therefore active in every environment.
+        A record reported as `SENT` may still have failed to publish, because per-event
+        failures are swallowed by the processor.
+      operationId: testStockNotify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/StockRecord'
+            example:
+              - id: S-2025-01-01-000001
+                clientReferenceId: 6b0a3c2e-0d5b-4c1d-9b0e-1b2c3d4e5f60
+                tenantId: ba
+                productVariantId: PVAR-2025-01-01-000001
+                quantity: 50
+                senderId: F-2025-01-01-000001
+                senderType: WAREHOUSE
+                receiverId: F-2025-01-01-000002
+                receiverType: WAREHOUSE
+                additionalFields:
+                  schema: Stock
+                  version: 1
+                  fields:
+                    - key: stockEntryType
+                      value: ISSUED
+                    - key: status
+                      value: IN_TRANSIT
+                    - key: mrnNumber
+                      value: MRN-0001
+                    - key: sku
+                      value: ITN Nets
+      responses:
+        '200':
+          description: Simulation completed (per-record outcome in `results`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockNotifyResponse'
+        '400':
+          description: Body could not be parsed as a JSON array
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockNotifyErrorResponse'
+              example:
+                status: error
+                error: "Cannot deserialize value of type `com.fasterxml.jackson.databind.JsonNode[]` ..."
+
+components:
+  schemas:
+    CacheRefreshResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Cache refreshed successfully
+
+    StockRecord:
+      type: object
+      description: |
+        Stock model (`org.egov.common.models.stock.Stock`) as published on the stock Kafka
+        topics. Only the fields read by the notification flow are listed; unknown fields are
+        accepted.
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        clientReferenceId: { type: string }
+        tenantId: { type: string }
+        quantity: { type: integer }
+        senderId:
+          type: string
+          description: Notified for ISSUED + ACCEPTED / REJECTED
+        senderType:
+          type: string
+          enum: [WAREHOUSE, STAFF]
+        receiverId:
+          type: string
+          description: Notified for ISSUED + IN_TRANSIT and all RETURNED statuses
+        receiverType:
+          type: string
+          enum: [WAREHOUSE, STAFF]
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+
+    AdditionalFields:
+      type: object
+      properties:
+        schema:
+          type: string
+          description: Records are processed only when this is `Stock`
+          example: Stock
+        version: { type: integer }
+        fields:
+          type: array
+          description: |
+            Keys read: stockEntryType (ISSUED, RETURNED, DAMAGED, RECEIPT, RETURN_ACCEPTED,
+            RETURN_REJECTED), status (IN_TRANSIT, ACCEPTED, REJECTED), primaryRole
+            (SENDER / RECEIVER, legacy recipient fallback), mrnNumber (Transaction_ID), sku.
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              value: { type: string }
+
+    StockNotifyResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [completed]
+        totalRecords:
+          type: integer
+          description: Number of records in the payload
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockNotifyResult'
+
+    StockNotifyErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+        error:
+          type: string
+
+    StockNotifyResult:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stock record id ("unknown" if absent)
+        schema:
+          type: string
+        stockEntryType:
+          type: string
+          description: Value of the stockEntryType field ("unknown" if absent)
+        status:
+          type: string
+          enum: [SENT, SKIPPED, NO_EVENTS, ERROR]
+        reason:
+          type: string
+          description: Present for SKIPPED and NO_EVENTS
+        eventsBuilt:
+          type: integer
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationEventDetail'
+        error:
+          type: string
+          description: "Present for ERROR (<ExceptionClass>: <message>)"
+
+    NotificationEventDetail:
+      type: object
+      properties:
+        eventType:
+          type: string
+          example: STOCK_ISSUE_PUSH_NOTIFICATION
+        entityType:
+          type: string
+          example: STOCK
+        templateCode:
+          type: string
+        recipientFacilityId:
+          type: string
+        locale:
+          type: string
+          example: en_NG
+        channel:
+          type: string
+          enum: [SMS, PUSH]
+        data:
+          type: object
+          description: Navigation data (notificationType, eventType, transactionRef, screen)
+          additionalProperties: { type: string }
+        placeholders:
+          type: object
+          description: Sending_Facility_Name, Receiving_Facility_Name, Transaction_ID, quantity_of_sku
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          type: object
+          nullable: true
+        Errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              message: { type: string }
+              description: { type: string }
+              params:
+                type: array
+                items: { type: string }

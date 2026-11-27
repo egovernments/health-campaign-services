@@ -1,0 +1,113 @@
+@startuml
+title HRMS - Employee Search
+!theme vibrant
+participant Client as c
+participant HrmsService as s
+participant IndividualService as ind
+database Database as db
+
+c -> s : POST /egov-hrms/employees/_search?tenantId&codes&names&uuids&ids&phone&roles\n&departments&designations&positions&asOnDate&employeestatuses\n&employeetypes&userServiceUuids&isActive&includeUnassigned&limit&offset
+activate s
+
+s -> s: Validate request body (@Valid)\n(body { RequestInfo } required; criteria bound from query params)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateSearchRequest
+    s -> s: userInfo.type == CITIZEN and ids given
+    s -> s: Criteria empty and user has no role in open.search.enabled.roles (SUPERUSER)
+    s -> s: asOnDate given without departments AND designations
+    s -> s: roles given without tenantId
+    s -> s: phone or names given without tenantId
+    alt errorMap not empty
+        s -> c: HttpStatus: 400 ERR_HRMS_INVALID_SEARCH_CITIZEN / ERR_HRMS_INVALID_SEARCH_REQ /\nERR_HRMS_INVALID_SEARCH_AOD / ERR_HRMS_INVALID_SEARCH_ROLES / ERR_HRMS_INVALID_SEARCH_USER
+    end
+end
+
+opt phone, roles or codes given
+    s -> ind: /individual/v1/_search?limit=1000&offset=0&tenantId\n(mobileNumber = phone, roleCodes = roles, username = codes[0], type EMPLOYEE)
+    activate ind
+    ind -> s: Users
+    deactivate ind
+    s -> s: uuids = criteria.uuids INTERSECT user ids (or user ids)
+end
+
+opt NOT ((roles or phone given) and uuids empty)
+    opt names given
+        loop each name
+            s -> ind: /individual/v1/_search?limit=1000&offset=0&tenantId\n(individualName = name, type EMPLOYEE)
+            activate ind
+            ind -> s: Users
+            deactivate ind
+        end
+        s -> s: Restrict uuids to the users found
+    end
+    opt userServiceUuids given
+        s -> ind: /individual/v1/_search?limit=1000&offset=0&tenantId\n(userUuid = userServiceUuids, individualName = names[0], type EMPLOYEE)
+        activate ind
+        ind -> s: Users
+        deactivate ind
+        s -> s: Restrict uuids to the users found
+    end
+end
+
+alt (roles, names or phone given) and uuids empty
+    s -> s: No DB query, Employees = []
+else
+    group repository.fetchEmployees
+        opt positions, asOnDate, departments or designations given
+            s -> db: SELECT DISTINCT employeeid FROM eg_hrms_assignment\nWHERE department IN, designation IN, position IN, asOnDate within fromdate..todate
+            activate db
+            db -> s: Employee uuids
+            deactivate db
+            alt no uuids
+                s -> s: Return Employees = [], TotalCount = 0
+            end
+            s -> s: Restrict criteria.uuids
+        end
+        opt includeUnassigned = true
+            s -> db: SELECT employee.uuid FROM eg_hrms_employee\nLEFT JOIN eg_hrms_assignment WHERE assignment.employeeid IS NULL
+            activate db
+            db -> s: Employee uuids (replace criteria.uuids)
+            deactivate db
+        end
+        alt invalid tenantId for schema
+            s -> c: HttpStatus: 400 TENANT_ID_EXCEPTION
+        end
+        s -> db: SELECT employee + assignment, education, depttest, docs, history,\njurisdiction, deact, react (LEFT JOIN) WHERE tenantid = ?, lower(code) IN,\nid IN, uuid IN, employeestatus IN, employeetype IN, active = ?\nDENSE_RANK() OVER (ORDER BY employee_uuid) offset_ > offset AND <= offset + limit
+        activate db
+        db -> s: Employees
+        deactivate db
+        s -> db: SELECT employee.active, count(*) FROM <same joins> WHERE <same filters>\nGROUP BY employee.active
+        activate db
+        db -> s: totalEmployee
+        deactivate db
+        note right
+            Default limit = egov.hrms.default.pagination.limit (200), offset 0.
+            DB errors are logged and an empty list is returned.
+            count(*) counts joined child rows, not distinct employees.
+        end note
+    end
+end
+
+opt employees found
+    opt no users fetched yet
+        s -> ind: /individual/v1/_search?limit=1000&offset=0&tenantId\n(id IN employee uuids, type EMPLOYEE)
+        activate ind
+        ind -> s: Users
+        deactivate ind
+        s -> s: TotalCount = individual search totalCount
+    end
+    s -> s: employee.user = user with the same uuid
+end
+
+s -> c: HttpStatus: 200 { ResponseInfo, Employees, TotalCount, Errors: [] }
+deactivate s
+
+note over s, ind
+    With egov.hrms.user.service.qualifier = defaultUserService all user lookups go to
+    egov-user /user/v1/_search instead (errors logged, empty result).
+end note
+
+@enduml

@@ -1,0 +1,79 @@
+@startuml
+title Notification Push - Kafka Consumer (Push Notification)
+!theme vibrant
+participant HealthNotificationService as hns
+queue Kafka as k
+participant NotificationPushService as s
+participant FirebaseCloudMessaging as fcm
+database Database as db
+
+group Push notification (/egov.core.notification.push)
+    hns -> k: PushNotificationRequest /egov.core.notification.push
+    activate k
+    s -> k: Consume (topicPattern "(<kafka.tenant.id.pattern>){0,1}egov.core.notification.push")
+    activate s
+    s -> s: Convert record to PushNotificationRequest\n(title, body, data, deviceTokens, facilityId,\nrecipientRoles, tenantId)
+
+    opt deviceTokens empty and facilityId present
+        s -> s: Resolve schema from tenantId
+        alt recipientRoles present
+            s -> db: SELECT ... FROM <schema>.eg_push_device_tokens\nWHERE facilityid = :facilityId AND\n(userroles LIKE '%role0%' OR userroles LIKE '%role1%' ...)
+            activate db
+            db -> s: Device token rows
+            deactivate db
+        else no recipientRoles
+            s -> db: SELECT ... FROM <schema>.eg_push_device_tokens\nWHERE facilityid = :facilityId
+            activate db
+            db -> s: Device token rows
+            deactivate db
+        end
+        alt no tokens found
+            s -> s: Log warning, skip notification
+        else
+            s -> s: deviceTokens = resolved tokens
+        end
+    end
+
+    alt fcm.enabled = true (FirebasePushService)
+        alt no device tokens
+            s -> s: Log warning, skip
+        else exactly one token
+            s -> fcm: FirebaseMessaging.send(Message)
+            activate fcm
+            fcm -> s: messageId / FirebaseMessagingException
+            deactivate fcm
+        else more than one token
+            loop batches of fcm.batch.size (500)
+                s -> fcm: FirebaseMessaging.sendEachForMulticast(MulticastMessage)
+                activate fcm
+                fcm -> s: BatchResponse
+                deactivate fcm
+            end
+        end
+        opt token failed with UNREGISTERED
+            s -> db: DELETE FROM <schema>.eg_push_device_tokens\nWHERE devicetoken IN (:deviceTokens)
+            activate db
+            deactivate db
+        end
+    else fcm.enabled = false (ConsolePushService)
+        s -> s: Log title, body, facilityId, data, device tokens
+    end
+
+    alt any exception
+        s -> s: Log "Error processing push notification message"
+        note right
+            Message is dropped, no retry
+        end note
+    end
+    deactivate s
+    deactivate k
+end
+
+note over s, db
+    Role match is a substring LIKE on the comma-separated userroles
+    column, so overlapping role codes can over-match.
+    kafka.tenant.id.pattern is empty by default, so only the
+    unprefixed topic is consumed unless the pattern is configured.
+end note
+
+@enduml

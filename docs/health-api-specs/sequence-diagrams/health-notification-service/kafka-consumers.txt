@@ -1,0 +1,226 @@
+@startuml
+title Health Notification - Kafka Consumers (Project Task, Stock / HFReferral, Save Final SMS Message)
+!theme vibrant
+participant ProjectService as ps
+participant StockService as sts
+participant ReferralManagement as rm
+queue Kafka as k
+participant HealthNotificationService as s
+participant InMemoryCache as mc
+participant MdmsService as mdms
+participant HouseholdService as hs
+participant IndividualService as is
+participant FacilityService as fs
+participant LocalizationService as ls
+participant EncService as enc
+participant NotificationPushService as nps
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+note over k, s
+    All listeners use topicPattern "(${kafka.tenant.id.pattern}){0,1}<topic>"
+    (pattern empty by default; e.g. "ba-" prefix on a central instance).
+    Every listener catches all exceptions and only logs them: no retry, no DLQ.
+end note
+
+group Post-distribution SMS scheduling (/save-project-task-topic)
+    ps -> k: Task[] /save-project-task-topic
+    activate k
+    s -> k: Consume Task[]
+    activate s
+    s -> s: Keep tasks with status == ADMINISTRATION_SUCCESS and\n(additionalFields.deliveryStrategy absent or == DIRECT)
+    loop for each eligible task
+        s -> ps: POST /project/v1/_search?limit=1&offset=0&tenantId\n(Projects[{id, tenantId}], apiOperation SEARCH)
+        activate ps
+        ps -> s: Project
+        deactivate ps
+        alt project not found
+            s -> s: PROJECT_NOT_FOUND (task skipped, error logged)
+        end
+        s -> s: beneficiaryType = additionalDetails.projectType.beneficiaryType\neventTimestamp = task.clientAuditDetails.createdTime
+        s -> mc: get "<tenantId>_<projectType>"
+        opt cache miss
+            s -> mdms: POST /mdms-v2/v2/_search\n(HCM-NOTIFICATION-CONFIG.NotificationConfig,\nfilters campaignType = projectType)
+            activate mdms
+            mdms -> s: MdmsV2Response
+            deactivate mdms
+            alt no config
+                s -> s: MDMS_NOTIFICATION_CONFIG_NOT_FOUND (task skipped)
+            end
+            s -> mc: put config
+        end
+        alt data.smsEnabled != true
+            s -> s: Skip task
+        end
+        group fetchHouseHoldDetails
+            s -> ps: POST /project/beneficiary/v1/_search\n(clientReferenceId = task.projectBeneficiaryClientReferenceId)
+            activate ps
+            ps -> s: ProjectBeneficiary (or PROJECT_BENEFICIARY_NOT_FOUND)
+            deactivate ps
+            alt beneficiaryType == HOUSEHOLD
+                s -> hs: POST /household/member/v1/_search?limit=1&offset=0&tenantId\n(householdClientReferenceId, isHeadOfHousehold = true)
+                activate hs
+                hs -> s: Head HouseholdMember (or HOUSEHOLD_HEAD_NOT_FOUND)
+                deactivate hs
+            else beneficiaryType == INDIVIDUAL
+                s -> hs: POST /household/member/v1/_search\n(individualClientReferenceId)
+                activate hs
+                hs -> s: HouseholdMember (or HOUSEHOLD_MEMBER_NOT_FOUND)
+                deactivate hs
+                opt member is not head of household
+                    s -> is: POST /individual/v1/_search (child id)
+                    activate is
+                    is -> s: Individual (ChildName)
+                    deactivate is
+                    s -> hs: POST /household/member/v1/_search\n(householdId, isHeadOfHousehold = true)
+                    activate hs
+                    hs -> s: Head HouseholdMember
+                    deactivate hs
+                end
+            else other
+                s -> s: UNKNOWN_BENEFICIARY_TYPE (task skipped)
+            end
+            s -> is: POST /individual/v1/_search (head individual id)
+            activate is
+            is -> s: Individual (name, mobileNumber, altContactNumber, email)\nor INDIVIDUAL_NOT_FOUND
+            deactivate is
+        end
+        alt no mobileNumber and no altContactNumber
+            s -> s: Skip task
+        end
+        s -> s: Find enabled eventNotifications[eventType = <projectType>_POST_DISTRIBUTION]\n(skip task if absent / disabled); locale = data.locale[0] (default en_NG)
+        s -> s: One ScheduledNotification per scheduledNotifications[] entry:\ntemplateCode, contextData (placeholders + locale), status PENDING,\ncreatedAt = event date, scheduledAt = event date +/- delayHours/24 days\n(BEFORE_START subtracts, AFTER_EVENT adds; timezone notification.timezone)
+        group validateForCreate
+            s -> s: Required: tenantId, entityId, entityType, eventType,\ntemplateCode, recipientId, recipientType
+            alt any missing
+                s -> s: CustomException(errorMap) (task skipped, error logged)
+            end
+            s -> s: Drop notifications without mobileNumber
+            loop for each notification
+                s -> db: SELECT * FROM <schema>.scheduled_notification WHERE entityId AND eventType\nAND templateCode AND recipientId AND isDeleted = false LIMIT 1
+                activate db
+                db -> s: Existing row
+                deactivate db
+                s -> s: Drop duplicates (idempotent reprocessing)
+            end
+        end
+        s -> s: enrichForCreate: id, clientReferenceId (UUID), status PENDING,\nisDeleted false, rowVersion 1, attempts 0, auditDetails (SYSTEM)
+        loop for each notification (mobileNumber, contextData)
+            s -> enc: POST /egov-enc-service/crypto/v1/_encrypt\n(tenantId = egov.state.tenant.id, type Normal)
+            activate enc
+            enc -> s: Cipher text (or ENCRYPTION_ERROR)
+            deactivate enc
+        end
+        s -> k: ScheduledNotification[] /save-scheduled-notification-topic-health
+    end
+    deactivate s
+end
+
+group Push notifications (/save-stock-topic, /update-stock-topic, /save-hfreferral-topic, /update-hfreferral-topic)
+    note over k, s
+        Listener exists only when notification.push.enabled = true (default)
+    end note
+    sts -> k: Stock[] /save-stock-topic, /update-stock-topic
+    rm -> k: HFReferral[] /save-hfreferral-topic, /update-hfreferral-topic
+    s -> k: Consume JSON array
+    activate s
+    loop for each record (one failure does not stop the others)
+        alt additionalFields.schema == "Stock"
+            s -> s: StockNotificationAdapter: stockEntryType + status -> eventType,\nrecipient facility = receiverId / senderId
+            s -> mc: get "<tenantId>_PUSH-NOTIFICATION" (MDMS on miss)
+            s -> fs: POST /facility/v1/_search?tenantId&limit=1&offset=0\n(sender / receiver of type WAREHOUSE)
+            activate fs
+            fs -> s: Facility name
+            deactivate fs
+        else additionalFields.schema == "HFReferral"
+            alt topic is an update topic
+                s -> s: Skip (only creates notify)
+            end
+            s -> mc: get "<tenantId>_PUSH-NOTIFICATION" (MDMS on miss)
+            s -> ps: POST /health-project/facility/v1/_search?limit=1&offset=0&tenantId\n(ProjectFacility.id = projectFacilityId)
+            activate ps
+            ps -> s: ProjectFacilities[0].facilityId
+            deactivate ps
+            s -> s: eventType HF_REFERRAL_PUSH_NOTIFICATION, title "New Referral Created",\nnavigation data (referralCode, beneficiaryId, screen REFERRAL_DETAILS_SCREEN)
+        else other schema
+            s -> s: Log "Unknown schema", skip
+        end
+        s -> s: Require enabled event config + enabled scheduledNotifications[0].templateCode
+        loop for each NotificationEvent
+            s -> mc: get "<tenantId>_<locale>_<templateCode>"
+            opt cache miss
+                s -> ls: POST /localization/messages/v1/_search\n?locale&tenantId&module=health-notification&codes=<templateCode>
+                activate ls
+                ls -> s: message
+                deactivate ls
+            end
+            s -> s: Replace placeholders (fallback body = placeholders map)
+            opt channel PUSH and notification.push.enabled and facilityId present
+                s -> k: {title, body, facilityId, tenantId, recipientRoles, data}\n/egov.core.notification.push
+            end
+        end
+    end
+    deactivate s
+end
+
+group Final SMS message (/save-final-sms-message)
+    note over k, s
+        Produced by this service's scheduler
+        (see notification-scheduler.txt)
+    end note
+    s -> k: Consume {notificationId, tenantId, mobileNumber, message}
+    activate s
+    alt notificationId, tenantId, mobileNumber or message blank
+        s -> s: Log error, skip
+    end
+    s -> db: SELECT * FROM <schema>.scheduled_notification\nWHERE id IN (:ids) AND isDeleted = false (+ count CTE)
+    activate db
+    db -> s: ScheduledNotification
+    deactivate db
+    alt not found
+        s -> s: Log error, skip
+    end
+    s -> s: markSent: status SENT, attempts + 1, lastAttemptAt = now,\nrowVersion + 1, lastModified* = SYSTEM
+    s -> k: [ScheduledNotification] /update-scheduled-notification-topic-health
+    deactivate s
+    note right
+        The message is never forwarded to egov.core.notification.sms
+        (kafka.topics.notification.sms is configured but unused),
+        so no SMS is actually handed to the SMS gateway.
+    end note
+end
+
+group async
+    prs -> k: Consume /save-scheduled-notification-topic-health
+    activate prs
+    prs -> db: INSERT INTO health.scheduled_notification (...)
+    activate db
+    deactivate db
+    prs -> k: Consume /update-scheduled-notification-topic-health
+    prs -> db: UPDATE health.scheduled_notification SET status, attempts,\nlastAttemptAt, errorMessage, isDeleted, rowVersion, lastModified*\nWHERE id AND tenantId
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /save-scheduled-notification-topic-health,\n/update-scheduled-notification-topic-health
+    activate idx
+    idx -> el: Store ScheduledNotification /scheduled-notification-v1
+    activate el
+    deactivate el
+    deactivate idx
+    nps -> k: Consume /egov.core.notification.push
+    activate nps
+    nps -> nps: Resolve device tokens, send FCM
+    deactivate nps
+end
+deactivate k
+
+note over prs, el
+    Persister / indexer mappings are from the service's own
+    health-notification-persister.yml and indexer-health-notification.yml.
+    health-campaign-config (demo) uses topics demo-save/update-scheduled-notification-topic
+    (no "-health" suffix), which do not match the topics this service produces.
+end note
+
+@enduml

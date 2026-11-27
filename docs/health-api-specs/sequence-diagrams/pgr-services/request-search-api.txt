@@ -1,0 +1,118 @@
+@startuml
+title PGR Services - Request Search
+!theme vibrant
+participant Client as c
+participant PGRService as s
+participant UserService as us
+participant WorkflowService as wf
+database Database as db
+
+c -> s : POST /pgr-services/v2/request/_search?tenantId&serviceCode&...
+activate s
+
+s -> s: Validate body (RequestInfo) and query params\n(RequestSearchCriteria via @ModelAttribute, @CustomSafeHtml)
+alt validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateSearch
+    alt mobileNumber / serviceRequestId / ids / serviceCode given without tenantId
+        s -> c: HttpStatus: 400 INVALID_SEARCH (TenantId is mandatory)
+    end
+    alt EMPLOYEE and criteria empty
+        s -> c: HttpStatus: 400 INVALID_SEARCH (Search without params is not allowed)
+    else EMPLOYEE, state level tenantId and enable.state.level.search=false
+        s -> c: HttpStatus: 400 INVALID_SEARCH (state level search)
+    end
+    alt userType not CITIZEN / EMPLOYEE / SYSTEM
+        s -> c: HttpStatus: 400 INVALID SEARCH (no search config)
+    else param not in allowed list
+        s -> c: HttpStatus: 400 INVALID SEARCH (Search on <param> is not allowed)
+    end
+    note right
+        citizen.allowed.search.params = serviceRequestId,ids,
+        mobileNumber,applicationStatus,tenantId
+        employee.allowed.search.params adds serviceCode
+        (SYSTEM uses the employee list)
+    end note
+end
+
+group enrichSearchRequest
+    opt criteria empty and userType CITIZEN / EMPLOYEE
+        s -> s: criteria.mobileNumber = userInfo.userName
+    end
+    s -> s: criteria.accountId = userInfo.uuid (not used by the query)
+    opt mobileNumber present
+        s -> us: /user/_search (mobileNumber, tenantId, active = true)
+        activate us
+        us -> s: Users
+        deactivate us
+        s -> s: criteria.userIds = user uuids
+    end
+    s -> s: limit default 100, max 200, offset default 0
+end
+
+alt criteria empty, or mobileNumber given but no userIds
+    s -> s: serviceWrappers = []
+else
+    s -> db: SELECT ser.*, ads.* FROM eg_pgr_service_v2 ser\nINNER JOIN eg_pgr_address_v2 ads ON ads.parentId = ser.id\nWHERE <criteria> ORDER BY <sortBy> <sortOrder> OFFSET ? LIMIT ?
+    activate db
+    note right
+        tenantid LIKE 'pb%' for state tenant else =,
+        serviceCode IN, hierarchytype =, applicationStatus IN,
+        serviceRequestId =, id IN, SLA delta on createdtime,
+        accountId IN userIds, locality IN, createdtime BETWEEN
+        fromDate AND toDate (toDate default now).
+        Default ORDER BY ser_createdtime DESC
+    end note
+    alt toDate without fromDate
+        s -> c: HttpStatus: 400 INVALID_SEARCH (Cannot specify to-Date without a from-Date)
+    else invalid tenant (schema resolution)
+        s -> c: HttpStatus: 400 INVALID_TENANT_ID
+    end
+    db -> s: Services with address
+    deactivate db
+    opt services found
+        s -> us: /user/_search (uuid = accountIds,\ntenantId of first record, active = true)
+        activate us
+        us -> s: Users
+        deactivate us
+        alt no users found
+            s -> c: HttpStatus: 400 USER_NOT_FOUND
+        end
+        s -> s: service.user = user by accountId
+        loop per tenantId
+            s -> wf: /egov-workflow-v2/egov-wf/process/_search\n?tenantId&businessIds=<serviceRequestIds>
+            activate wf
+            wf -> s: ProcessInstances
+            deactivate wf
+            alt parse error
+                s -> c: HttpStatus: 400 PARSING ERROR
+            else process instance count != complaint count
+                s -> c: HttpStatus: 400 WORKFLOW_NOT_FOUND
+            end
+            s -> s: workflow = action, assignes, comments, documents
+        end
+        s -> s: Sort by auditDetails.createdTime DESC
+    end
+end
+
+group getDynamicData (tenantId from query param)
+    s -> db: SELECT count(*) FROM eg_pgr_service_v2\nWHERE applicationstatus = 'CLOSEDAFTERRESOLUTION'\nAND tenantid = ? AND lastmodifiedtime > now - 30 days
+    activate db
+    db -> s: complaintsResolved
+    deactivate db
+    s -> db: SELECT COALESCE(round(avg(lastmodifiedtime - createdtime)/86400000), -1)\nFROM eg_pgr_service_v2 WHERE applicationstatus = 'CLOSEDAFTERRESOLUTION'\nAND tenantid = ?
+    activate db
+    db -> s: averageResolutionTime (days)
+    deactivate db
+    alt invalid tenant
+        s -> c: HttpStatus: 400 INVALID_TENANT_ID
+    end
+end
+s -> s: complaintTypes = egov.complaints.category (13)
+
+s -> c: HttpStatus: 200 ServiceResponse (ServiceWrappers,\ncomplaintsResolved, averageResolutionTime, complaintTypes)
+deactivate s
+
+@enduml

@@ -3,7 +3,7 @@ package org.egov.transformer.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
-import org.egov.transformer.producer.Producer;
+import org.egov.common.producer.Producer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

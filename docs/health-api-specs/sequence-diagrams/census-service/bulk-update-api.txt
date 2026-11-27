@@ -1,0 +1,103 @@
+@startuml
+title Census - Bulk Update (Workflow Transition)
+!theme vibrant
+participant Client as c
+participant CensusService as s
+participant BoundaryService as bs
+participant PlanService as ps
+participant WorkflowService as wf
+queue Kafka as k
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /census-service/bulk/_update
+activate s
+
+s -> s: Validate request body (@Valid)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateBulkUpdate
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search\n(tenantId, hierarchyType of first census)
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+
+    s -> s: Validate census attributes
+    alt duplicate census ids
+        s -> c: HttpStatus: 400 DUPLICATE_CENSUS_ID_IN_BULK_UPDATE
+    else different tenantId or source
+        s -> c: HttpStatus: 400 INVALID_SOURCE_OR_TENANT_ID_FOR_BULK_UPDATE
+    else workflow missing for any entry
+        s -> c: HttpStatus: 400 WORKFLOW_NOT_FOUND_FOR_BULK_UPDATE
+    else different status or workflow action
+        s -> c: HttpStatus: 400 DIFFERENT_WORKFLOW_FOR_BULK_UPDATE
+    end
+
+    s -> db: SELECT census WHERE id IN (...)
+    activate db
+    db -> s: Existing census
+    deactivate db
+    alt count mismatch
+        s -> c: HttpStatus: 400 INVALID_CENSUS
+    end
+    s -> s: Copy boundaryAncestralPath from DB records
+
+    alt userInfo missing
+        s -> c: HttpStatus: 400 USERINFO_MISSING
+    end
+    s -> ps: /plan-service/employee/_search\n(user uuid, planConfigurationId = source,\njurisdiction of first census, census roles)
+    activate ps
+    ps -> s: PlanEmployeeAssignment
+    deactivate ps
+    alt no assignment found
+        s -> c: HttpStatus: 400 INVALID_PARTNER
+    end
+    s -> s: Set assigneeJurisdiction on all census
+    s -> s: Enrich jurisdictionMapping for all census
+end
+
+group workflow
+    s -> ps: /plan-service/employee/_search\n(ancestral boundaries of first census)
+    activate ps
+    ps -> s: PlanEmployeeAssignments
+    deactivate ps
+    s -> s: Auto-assign assignee for all census
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(one ProcessInstance per census)
+    activate wf
+    alt workflow transition fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 WORKFLOW_INTEGRATION_ERROR
+    else success
+        wf -> s: ProcessInstances
+        deactivate wf
+        s -> s: Set status (from first process instance) and auditDetails
+    end
+end
+
+s -> db: Batch UPDATE census SET status, assignee, last_modified_by,\nlast_modified_time, additional_details, facility_assigned WHERE id = ?
+activate db
+deactivate db
+s -> k: BulkCensusRequest /census-bulk-update-topic
+activate k
+s -> c: HttpStatus: 201 Census
+deactivate s
+
+group async
+    idx -> k: Consume /census-bulk-update-topic
+    activate idx
+    idx -> el: Store Census /census-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+note over db
+    Bulk update writes to the DB directly (synchronously).
+    The Kafka topic is only consumed by the indexer
+end note
+
+@enduml

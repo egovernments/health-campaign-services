@@ -1,0 +1,26 @@
+@startuml
+title PGR Services - Mock Request Search
+!theme vibrant
+participant Client as c
+participant PGRService as s
+
+c -> s : POST /pgr-services/mock/requests/_search
+activate s
+
+s -> s: Validate body (RequestInfo) and query params (@Valid)
+alt validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+s -> s: Read classpath:mockData.json
+alt file cannot be read
+    s -> c: HttpStatus: 400 FILEPATH_ERROR
+end
+s -> c: HttpStatus: 200 mockData.json content (static)
+deactivate s
+
+note over s
+    Static mock response; request body is validated but ignored.
+    No DB, Kafka or external calls
+end note
+
+@enduml

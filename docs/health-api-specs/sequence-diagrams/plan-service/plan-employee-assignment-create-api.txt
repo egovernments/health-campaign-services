@@ -1,0 +1,126 @@
+@startuml
+title Plan Service - Plan Employee Assignment Create
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant UserService as us
+participant ProjectFactory as pf
+participant MdmsService as mdms
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /plan-service/employee/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(tenantId, planConfigurationId, employeeId, role required (2-64);\nhierarchyLevel 2-64; jurisdiction not empty)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateCreate
+    s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = <root tenant>
+    activate db
+    db -> s: Plan configuration
+    deactivate db
+    s -> us: /user/_search (tenantId, uuid = [employeeId])
+    activate us
+    us -> s: User
+    deactivate us
+
+    s -> db: SELECT plan_employee_assignment WHERE tenant_id = ?\nAND plan_configuration_id = ? AND employee_id IN (?)\nAND role IN (?) AND active = true
+    activate db
+    db -> s: Existing assignments
+    deactivate db
+    alt same assignment exists
+        s -> c: HttpStatus: 400 PLAN_EMPLOYEE_ASSIGNMENT_ALREADY_EXISTS
+    end
+
+    alt plan configuration not found
+        s -> c: HttpStatus: 400 INVALID_PLAN_CONFIG_ID
+    end
+
+    alt user not found (or user service call failed)
+        s -> c: HttpStatus: 400 INVALID_EMPLOYEE_ID
+    else user does not have the requested role
+        s -> c: HttpStatus: 400 INVALID_EMPLOYEE_ROLE
+    end
+
+    opt role present in role.map
+        s -> db: SELECT plan_employee_assignment (tenantId, planConfigurationId,\nemployeeId, role = conflicting role, active = true)
+        activate db
+        db -> s: Conflicting assignments
+        deactivate db
+        note right
+            role.map pairs ROOT_X <-> X for
+            FACILITY_CATCHMENT_MAPPER,
+            POPULATION_DATA_APPROVER,
+            PLAN_ESTIMATION_APPROVER
+        end note
+        alt conflicting role already assigned
+            s -> c: HttpStatus: 400 INVALID_EMPLOYEE_ROLE
+        end
+    end
+
+    group validateCampaignDetails
+        s -> pf: /project-factory/v1/project-type/search\n(ids = [plan configuration campaignId], root tenant)
+        activate pf
+        pf -> s: CampaignDetails (boundaries)
+        deactivate pf
+        alt no campaign details
+            s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+        end
+        s -> mdms: /mdms-v2/v1/_search (root tenant,\nHCM-ADMIN-CONSOLE.HierarchySchema, hcm-microplanning masters)
+        activate mdms
+        mdms -> s: MdmsRes
+        deactivate mdms
+        alt MdmsRes empty
+            s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+        end
+        alt no campaign boundary of type hierarchyLevel
+            s -> c: HttpStatus: 400 INVALID_HIERARCHY_LEVEL
+        else jurisdiction not a campaign boundary of that level
+            s -> c: HttpStatus: 400 INVALID_JURISDICTION
+        end
+        s -> s: Read microplan highestHierarchy / lowestHierarchy\nfrom HierarchySchema (type == microplan)
+        alt JSONPath evaluation fails
+            s -> c: HttpStatus: 400 JSONPATH_ERROR
+        end
+        alt ROOT role with more than one jurisdiction\nor jurisdiction not at highest hierarchy
+            s -> c: HttpStatus: 400 INVALID_ROOT_EMPLOYEE_JURISDICTION
+        else non-ROOT role with jurisdiction at lowest or highest hierarchy
+            s -> c: HttpStatus: 400 INVALID_EMPLOYEE_JURISDICTION
+        end
+    end
+end
+
+group enrichCreate
+    s -> s: Generate id, active = true, set auditDetails
+    s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = ?
+    activate db
+    db -> s: Plan configuration
+    deactivate db
+    s -> s: planConfigurationName = plan configuration name
+end
+
+s -> k: PlanEmployeeAssignmentRequestDTO (jurisdiction comma-joined)\n/plan-employee-assignment-create-topic
+activate k
+s -> c: HttpStatus: 202 PlanEmployeeAssignment
+deactivate s
+
+group async
+    prs -> k: Consume /plan-employee-assignment-create-topic
+    activate prs
+    prs -> db: INSERT INTO plan_employee_assignment
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s
+    No indexer config exists for plan employee assignment topics.
+    Employee validation uses egov-user (/user/_search), not HRMS.
+end note
+
+@enduml

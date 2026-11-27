@@ -1,0 +1,32 @@
+@startuml
+title Resource Generator - Config Test
+!theme vibrant
+participant Client as c
+participant ResourceGenerator as s
+participant PlanService as ps
+
+c -> s : POST /resource-generator/config/_test
+activate s
+
+note right of s
+    No request body, no validation.
+    Debug endpoint left in FileController.
+end note
+
+s -> s: Build PlanConfigurationSearchCriteria with hard-coded values\n(tenantId = "mz", id = "b1a23c4e-a402-4047-9388-e8ae2bf7c1a3")\nand an empty RequestInfo
+
+s -> ps: /plan-service/config/_search
+activate ps
+alt plan-service call fails
+    ps -> s: Error
+    s -> s: Log "Exception occurred while fetching plan configuration\nfrom plan service", use empty list
+else success
+    ps -> s: PlanConfigurationResponse
+end
+deactivate ps
+
+s -> s: Discard result (parser call is commented out)
+s -> c: HttpStatus: 200 "Okay"
+deactivate s
+
+@enduml

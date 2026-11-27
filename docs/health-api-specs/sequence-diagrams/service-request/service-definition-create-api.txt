@@ -1,0 +1,97 @@
+@startuml
+title Service Request - Service Definition Create
+!theme vibrant
+participant Client as c
+participant ServiceRequestService as s
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /service-request/service/definition/v1/_create
+activate s
+
+s -> s: Validate request body (@Valid)\n(RequestInfo, ServiceDefinition required;\ncode 2-256 chars, attributes not null;\nattribute code 2-256, dataType, isActive required;\nid/tenantId/referenceId/regex 2-64, clientId max 64)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateServiceDefinitionRequest
+    group validateServiceDefinitionExistence
+        s -> db: SELECT id FROM eg_service_definition sd\nWHERE sd.tenantid = ? AND sd.code IN (?)\n(includeDeleted = true, no isActive filter)\nORDER BY sd.createdtime DESC OFFSET 0 LIMIT 10
+        activate db
+        db -> s: Service definition ids
+        deactivate db
+        opt ids found
+            s -> db: SELECT eg_service_definition INNER JOIN\neg_service_attribute_definition WHERE sd.id IN (...)
+            activate db
+            db -> s: Service definitions
+            deactivate db
+        end
+        alt definition with same tenantId + code exists (active or inactive)
+            s -> c: HttpStatus: 400 SERVICE_DEFINITION_ALREADY_EXISTS_ERR_CODE
+        end
+    end
+
+    group validateAttributeDefinitionUniqueness
+        alt duplicate attribute code in request
+            s -> c: HttpStatus: 400 ATTRIBUTE_CODE_UNIQUENESS_ERR_CODE
+        end
+    end
+
+    group validateAttributeValuesAsPerDataType
+        alt values passed for a dataType other than SingleValueList / MultiValueList
+            s -> c: HttpStatus: 400 INVALID_ATTRIBUTE_DEFINITION_ERR_CODE
+        end
+    end
+
+    group validateRegex
+        alt regex fails Pattern.compile
+            s -> c: HttpStatus: 400 INVALID_REGEX_ERR_CODE
+        end
+    end
+end
+
+group enrichServiceDefinitionRequest
+    s -> s: id = random UUID
+    s -> s: auditDetails (createdBy / lastModifiedBy = userInfo.uuid,\ncreatedTime / lastModifiedTime = now)
+    s -> s: For each attribute: id = random UUID,\nreferenceId = definition id, same auditDetails
+    s -> s: values = [""] for non list dataTypes
+end
+
+alt tenantId invalid for central instance schema
+    s -> c: HttpStatus: 400 INVALID_TENANT_ID
+end
+
+s -> k: ServiceDefinitionRequest /save-service-definition
+activate k
+s -> s: Reset values = null for non list dataTypes
+s -> c: HttpStatus: 200 ServiceDefinitions [ServiceDefinition]
+deactivate s
+
+group async
+    prs -> k: Consume /save-service-definition
+    activate prs
+    prs -> db: INSERT INTO eg_service_definition
+    activate db
+    deactivate db
+    prs -> db: INSERT INTO eg_service_attribute_definition\n(values stored as a comma separated string)
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s, k
+    Producer resolves a state specific topic via MultiStateInstanceUtil
+    (e.g. demo-save-service-definition for central instance tenants).
+    No egov-indexer config exists for this topic, so the data is not indexed.
+end note
+
+note over prs, db
+    The duplicate check runs before an asynchronous persist, so it has no lock.
+    If two identical creates race past the check, PRIMARY KEY (tenantId, code)
+    on eg_service_definition fails the second INSERT in the persister,
+    but that client has already received HTTP 200 with an id that is never stored.
+end note
+
+@enduml

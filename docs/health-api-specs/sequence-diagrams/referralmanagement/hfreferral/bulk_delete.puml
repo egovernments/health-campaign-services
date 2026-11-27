@@ -1,0 +1,153 @@
+@startuml
+title HFReferral - Bulk Delete
+!theme vibrant
+participant Client as c
+participant ReferralManagement as rm
+participant RedisCache as rc
+queue Kafka as k
+database Database as db
+participant FacilityService as fs
+participant HouseholdService as hs
+participant IndividualService as inds
+participant ProjectService as ps
+participant UserService as us
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+
+c -> rm : /referralmanagement/hf-referral/v1/bulk/_delete
+activate rm
+rm -> rm : Validate request body
+
+alt request validation fails
+    rm -> rm: Request validation failed
+    rm -> k: HFReferral Data /error_topic
+    note left
+        This will be marked as unrecoverable right away
+        and require manual intervention
+    end note
+    activate k
+    group async
+        es -> k: Consume HFReferral Data
+        activate es
+        deactivate k
+        es -> db: Persist HFReferral Data /error_table
+        activate db
+        deactivate db
+        deactivate es
+    end
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+rm -> rm: Request validation successful
+loop for each hfReferral
+    alt id is null
+        rm -> rm: Check if HFReferral object id is null
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+           Error Code: NULL_ID
+        end note
+    end
+    rm -> rm: Check if HFReferral id is not null
+    alt record doesn't exist
+        rm -> rc: Search record based on clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> rm: 0 rows
+        deactivate rc
+        rm -> db: Search record based on clientReferenceId/serverGeneratedId
+        activate db
+        db -> rm: 0 row
+        deactivate db
+        note left
+            This will be marked as unrecoverable right away
+            and require manual intervention
+        end note
+        rm -> k: HFReferral Data /error_topic
+        activate k
+        group async
+            es -> k: Consume HFReferral Data
+            activate es
+            deactivate k
+            es -> db: Persist HFReferral Data /error_table
+            activate db
+            deactivate db
+            deactivate es
+        end
+        s -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: RECORD_NOT_FOUND
+        end note
+    end
+    alt record doesn't exists in cache
+        rm -> rc: Search record based on clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> rm: 0 rows
+        deactivate rc
+        rm -> db: Search record based on clientReferenceId/serverGeneratedId
+        activate db
+        db -> rm: 1 row
+        deactivate db
+        rm -> rc: 1 record
+        activate rc
+        deactivate rc
+    end
+    rm -> rc: Fetch the existing record
+    activate rc
+    rc -> rm: 1 row
+    deactivate rc
+    alt Duplicate Entry is present [Unique entity validation failed]
+        rm -> rm: Check if HFReferral object isDeleted is true
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+           Error Code: IS_DELETED_TRUE
+        end note
+    end
+    rm -> rm: Duplicate Entry is not present [Unique entity validation successful]
+    alt incorrect rowVersion
+        s -> s: Compare rowVersion between request and db
+        s -> s: Incorrect rowVersion [request: should be +1 only]
+        s -> k: HFReferral Data /error_topic
+        group async
+            es -> k: Consume HFReferral Data
+            activate es
+            deactivate k
+            es -> db: Persist HFReferral Data /error_table
+            activate db
+            deactivate db
+            deactivate es
+        end
+        s -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: BAD_REQUEST
+        end note
+    end
+    s -> s: Compare rowVersion between request and db
+    s -> s: rowVersion in request = rowVersion in db + 1
+    rm -> k: HFReferral Data /persist_topic
+    activate k
+    rm -> rc: Put HFReferral Data against clientReferenceId/serverGeneratedId in cache
+    activate rc
+    deactivate rc
+    group async
+        prs -> k: Consume HFReferral Data
+        activate prs
+        idx -> k: Consume HFReferral Data
+        activate idx
+        idx -> el: Store HFReferral Data
+        activate el
+        deactivate el
+        deactivate idx
+        prs -> db: Persist HFReferral Data
+        activate db
+        deactivate db
+        deactivate prs
+    end
+    deactivate k
+end
+rm -> c : HttpStatus: 202 ACCEPTED
+deactivate rm
+
+@enduml

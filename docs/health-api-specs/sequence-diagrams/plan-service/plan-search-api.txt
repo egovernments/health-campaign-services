@@ -1,0 +1,67 @@
+@startuml
+title Plan Service - Plan (Estimation) Search
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant WorkflowService as wf
+database Database as db
+
+c -> s : POST /plan-service/plan/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(PlanSearchCriteria.tenantId required)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group enrichSearchRequest
+    s -> s: Build filtersMap on additionalDetails from\nfacilityIds -> facilityId, terrain, onRoadCondition,\nsecurityQ1, securityQ2
+end
+
+s -> db: SELECT id FROM plan WHERE <criteria>\nORDER BY last_modified_time DESC OFFSET ? LIMIT ?
+activate db
+db -> s: Plan ids
+deactivate db
+note right
+    Criteria: ids, planConfigurationId, tenantId, status,
+    locality (IN), campaignId, assignee (in comma list),
+    jurisdiction (overlaps boundary_ancestral_path),
+    filtersMap: additional_details->'<key>' ?| ARRAY[...].
+    Default limit 10, max 100, offset 0
+end note
+opt ids found
+    s -> db: SELECT plan LEFT JOIN plan_activity, plan_activity_condition,\nplan_resource, plan_target, plan_additional_field\nWHERE plan.id IN (...)
+    activate db
+    db -> s: Plans
+    deactivate db
+end
+
+s -> db: SELECT COUNT(id) for criteria
+activate db
+db -> s: TotalCount
+deactivate db
+
+s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?tenantId&businessServices=PLAN_ESTIMATION
+activate wf
+alt business service not found
+    wf -> s: Empty
+    s -> c: HttpStatus: 400 NO_BUSINESS_SERVICE_DATA_FOUND
+else
+    wf -> s: BusinessService states
+    deactivate wf
+end
+s -> db: SELECT COUNT(id), status FROM plan\nWHERE tenant_id, campaign_id, plan_configuration_id, jurisdiction\nGROUP BY status
+activate db
+db -> s: Status counts
+deactivate db
+s -> s: Add 0 for workflow states with no records
+
+s -> c: HttpStatus: 200 Plan, TotalCount, StatusCount
+deactivate s
+
+note over s
+    Keys terrain / onRoadCondition / securityQ1 / securityQ2 are matched
+    as literal top-level keys such as 'accessibilityDetails|terrain|code'.
+end note
+
+@enduml

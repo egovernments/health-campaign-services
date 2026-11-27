@@ -1,0 +1,39 @@
+@startuml
+title Boundary Management - Process Search
+!theme vibrant
+participant Client as c
+participant BoundaryManagement as s
+database Database as db
+
+c -> s : POST /boundary-management/v1/_process-search
+activate s
+
+group requestMiddleware
+    s -> s: Validate Content-Type and RequestInfo (msgId, userInfo.tenantId)
+    alt validation fails
+        s -> c: HttpStatus: 415 / 400 VALIDATION_ERROR
+    end
+end
+
+group validateSearchRequest
+    s -> s: SearchCriteria present
+    s -> s: Validate SearchCriteria against schema\n(tenantId required; id[], status, hierarchyType, referenceId)
+end
+
+alt request validation fails
+    s -> c: HttpStatus: 400 { Errors: [ code: VALIDATION_ERROR ] }
+else request validation successful
+    s -> db: SELECT * FROM eg_bm_processed_template\nWHERE tenantId [, id = ANY, status, hierarchyType, referenceId]
+    activate db
+    db -> s: Processed resources
+    deactivate db
+    s -> s: Transform rows to ResourceDetails
+    s -> c: HttpStatus: 200 ResourceDetails[]
+    note left
+        Client polls with the id from /v1/_process
+        until status is completed / failed
+    end note
+end
+deactivate s
+
+@enduml

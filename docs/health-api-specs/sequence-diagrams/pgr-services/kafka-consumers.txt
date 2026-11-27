@@ -1,0 +1,137 @@
+@startuml
+title PGR Services - Kafka Consumers (Notification)
+!theme vibrant
+queue Kafka as k
+participant PGRService as s
+participant LocalizationService as loc
+participant HRMSService as hrms
+participant MDMSService as mdms
+participant UserService as us
+participant WorkflowService as wf
+participant UrlShortener as url
+participant SMSNotificationService as sms
+participant UserEventService as ue
+
+group NotificationConsumer (/save-pgr-request, /update-pgr-request)
+    s -> k: Consume ServiceRequest
+    activate k
+    activate s
+    note right
+        topicPattern: (pgr.kafka.tenant.id.pattern){0,1}
+        (save-pgr-request|update-pgr-request){1}
+        (tenant pattern is empty by default)
+    end note
+    s -> s: key = workflow.action + "_" + service.applicationStatus
+    alt key not in NOTIFICATION_ENABLE_FOR_STATUS
+        s -> s: Log "Notification Disabled For State", stop
+    end
+
+    group getFinalMessage
+        s -> loc: /localization/messages/v1/_search\n?locale=<from msgId, default en_IN>&tenantId=<state>&module=rainmaker-pgr
+        activate loc
+        loc -> s: Messages
+        deactivate loc
+        s -> s: Pick PGR_<CITIZEN|EMPLOYEE>_<ACTION>_<STATUS>_SMS_MESSAGE\nand PGR_DEFAULT_CITIZEN_SMS_MESSAGE
+        alt template not found
+            s -> s: Log "No message Found", return null
+        end
+        opt ASSIGN -> PENDINGATLME, REASSIGN -> PENDINGFORREASSIGNMENT / PENDINGATLME
+            s -> loc: /localization/messages/v1/_search (module rainmaker-common)
+            activate loc
+            loc -> s: Messages
+            deactivate loc
+            s -> hrms: /egov-hrms/employees/_search?uuids=<workflow.assignes>&tenantId
+            activate hrms
+            hrms -> s: Employees (department, designation, name)
+            deactivate hrms
+            s -> mdms: /egov-mdms-service/v1/_search (RAINMAKER-PGR ServiceDefs)
+            activate mdms
+            mdms -> s: department of serviceCode
+            deactivate mdms
+            s -> us: /user/_search (uuid = assignee, userType EMPLOYEE,\nINTERNAL_MICROSERVICE_ROLE user)
+            activate us
+            us -> s: Employee name
+            deactivate us
+        end
+        opt REOPEN, RESOLVE, RATE
+            s -> wf: /egov-workflow-v2/egov-wf/process/_search\n?tenantId&businessIds=<serviceRequestId>&history=true
+            activate wf
+            wf -> s: ProcessInstances (last ASSIGN action assignee)
+            deactivate wf
+            alt no process instances
+                s -> s: WORKFLOW_NOT_FOUND (caught, logged)
+            end
+        end
+        s -> s: Replace {complaint_type}, {id}, {date} (auditDetails.createdTime),\n{status}, {emp_*}, {ulb}, {rating}, {additional_comments}
+        s -> url: /egov-url-shortening/shortener (mseva.mobile.app.download.link)
+        activate url
+        url -> s: Short URL
+        deactivate url
+        s -> s: message = { CITIZEN: [citizenMsg, defaultMsg], EMPLOYEE: [employeeMsg] }
+    end
+
+    group resolve employee mobile number
+        alt REOPEN / RESOLVE / RATE
+            s -> wf: /egov-workflow-v2/egov-wf/process/_search ... &history=true
+            activate wf
+            wf -> s: ASSIGN process instance assignee
+            deactivate wf
+        else APPLY or REJECT
+            s -> s: employeeMobileNumber = null
+        else ASSIGN / REASSIGN
+            s -> us: /user/_search (uuid = workflow.assignes[0])
+            activate us
+            us -> s: Employee
+            deactivate us
+        else other
+            s -> us: /user/_search (uuid = auditDetails.createdBy)
+            activate us
+            us -> s: User
+            deactivate us
+        end
+    end
+
+    opt egov.user.event.notification.enabled (false by default)
+        loop each message
+            s -> us: /user/_search (userName = citizen mobile, userType CITIZEN)
+            activate us
+            us -> s: Citizen uuid
+            deactivate us
+            s -> s: Build Event (SYSTEMGENERATED, name PGR, postedBy SYSTEM-PGR;\nRATE / REOPEN action links when action == RESOLVE)
+            s -> k: EventRequest /persist-user-events-async
+        end
+    end
+    opt notification.sms.enabled (false by default)
+        loop each message
+            s -> k: SMSRequest (mobileNumber, message) /egov.core.notification.sms
+        end
+    end
+
+    alt any exception
+        s -> s: Log "Error occured while processing the record"
+        note right
+            Message is dropped, no retry
+        end note
+    end
+    deactivate s
+end
+
+group async
+    ue -> k: Consume /persist-user-events-async
+    activate ue
+    deactivate ue
+    sms -> k: Consume /egov.core.notification.sms
+    activate sms
+    deactivate sms
+end
+deactivate k
+
+note over ue
+    No persister / indexer config in health-config for these
+    topics; they are consumed by egov-user-event and
+    egov-notification-sms. EMPLOYEE entry is always added, so
+    for APPLY / REJECT an SMS with null mobileNumber and
+    null message is pushed when SMS is enabled
+end note
+
+@enduml

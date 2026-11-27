@@ -1,0 +1,94 @@
+@startuml
+title Plan Service - Kafka Consumers (Resource Estimation, Plan Config Update, Project Factory Plan Facility)
+!theme vibrant
+participant ResourceGenerator as rg
+participant ProjectFactory as pf
+queue Kafka as k
+participant PlanService as s
+participant BoundaryService as bs
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+group Resource estimation plan create (/resource-microplan-create-topic)
+    rg -> k: PlanRequest /resource-microplan-create-topic
+    activate k
+    s -> k: Consume PlanRequest
+    activate s
+    s -> s: isRequestFromResourceEstimationConsumer = true
+    s -> s: Run the Plan Create flow
+    note right
+        Same as plan-create-api.txt, but the boundary
+        ancestral path / jurisdictionMapping are enriched
+        from boundary-service and the plan-employee
+        assignment / jurisdiction check is skipped
+    end note
+    s -> k: PlanRequestDTO /save-plan
+    alt any exception
+        s -> s: Log "Error in plan consumer"
+        note right
+            Message is dropped, no retry
+        end note
+    end
+    deactivate s
+end
+
+group Plan configuration update (/resource-plan-config-update-topic)
+    rg -> k: PlanConfigurationRequest /resource-plan-config-update-topic
+    s -> k: Consume PlanConfigurationRequest
+    activate s
+    s -> s: Run the Plan Configuration Update flow
+    note right
+        Same as plan-config-update-api.txt
+        (validations, workflow validation and
+        transition if a workflow is present)
+    end note
+    s -> k: PlanConfigurationRequest /plan-config-update-topic
+    alt any exception
+        s -> s: Log "Error in update plan configuration consumer"
+    end
+    deactivate s
+end
+
+group Project factory plan facility create (/project-factory-save-plan-facility)
+    pf -> k: PlanFacilityRequest /project-factory-save-plan-facility
+    s -> k: Consume PlanFacilityRequest
+    activate s
+    s -> s: hierarchyType = PlanFacility.additionalDetails.hierarchyType
+    opt hierarchyType present
+        s -> bs: /boundary-service/boundary-relationships/_search\n?codes=<residingBoundary>&includeParents=true&includeChildren=false\n&tenantId&hierarchyType
+        activate bs
+        bs -> s: TenantBoundary
+        deactivate bs
+        s -> s: Enrich boundaryAncestralPath and jurisdictionMapping
+    end
+    s -> s: serviceBoundaries = [] when missing
+    s -> k: PlanFacilityRequestDTO /save-plan-facility
+    note right
+        No validation and no id / audit / active enrichment:
+        the payload from project-factory is persisted as is
+    end note
+    alt any exception
+        s -> s: Log "Error in census consumer"
+    end
+    deactivate s
+end
+
+group async
+    prs -> k: Consume /save-plan, /plan-config-update-topic, /save-plan-facility
+    activate prs
+    prs -> db: INSERT plan (+ children), UPDATE / UPSERT plan_configuration (+ children),\nINSERT plan_facility_linkage
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /save-plan, /save-plan-facility
+    activate idx
+    idx -> el: Store /plan-index-v1, /plan-facility-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+@enduml

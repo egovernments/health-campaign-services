@@ -174,7 +174,7 @@ paths:
           schema:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-              
+  
 
   /project/beneficiary/v1/bulk/_update:
     post:
@@ -835,6 +835,16 @@ paths:
         - $ref: '#/parameters/tenantId'
         - $ref: '#/parameters/lastChangedSince'
         - $ref: '#/parameters/includeDeleted'
+        - name: onlyOutsideHouseholdSites
+          in: query
+          type: boolean
+          default: false
+          required: false
+          description: >-
+            URL parameter, used with boundaryTypes (hierarchy search): when true, only links to an outside household
+            site (a facility whose usage is a site type of MDMS HCM.OUTSIDE_HOUSEHOLD_TYPES) are returned in
+            facilityMap and ProjectFacilities. By default the hierarchy search leaves those links out. Ignored without
+            boundaryTypes.
       tags:
         - Project Facility
       responses:
@@ -1413,6 +1423,10 @@ definitions:
         minLength: 2
         maxLength: 64
         description: Client maintained unique ID of Household/Individual being added as beneficiary
+      tag:
+        type: string
+        maxLength: 1000
+        description: Beneficiary Voucher Tag
       dateOfRegistration:
         $ref: '#/definitions/eventTimestamp'
       additionalFields:
@@ -1434,12 +1448,16 @@ definitions:
       clientReferenceId:
         $ref: '#/definitions/clientReferenceIdForSearch'
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         minLength: 2
         maxLength: 64
         description: Unique ID form Project
       beneficiaryId:
-        type: string
+        type: array
+        items:
+          type: string
         minLength: 2
         maxLength: 64
         description: Unique ID of Household/Individual being added as beneficiary
@@ -1529,13 +1547,17 @@ definitions:
       clientReferenceId:
         $ref: '#/definitions/clientReferenceIdForSearch'
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         minLength: 2
         maxLength: 64
         description: Unique ProjectId
       projectBeneficiaryId:
-        type: string
-        example: "R-ID-1"
+        type: array
+        items:
+          type: string
+          example: "R-ID-1"
       plannedStartDate:
         type: integer
         format: int64
@@ -1618,12 +1640,16 @@ definitions:
       id:
         $ref: '#/definitions/idForSearch'
       staffId:
-        type: string
+        type: array
+        items:
+          type: string
         description: Unique userId defined using user service
         minLength: 2
         maxLength: 64
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         description: Project Id
         minLength: 2
         maxLength: 64
@@ -1726,7 +1752,9 @@ definitions:
       id:
         $ref: '#/definitions/idForSearch'
       projectId:
-        type: string
+        type: array
+        items:
+          type: string
         description: Unique Project Id defined in Project Service
         minLength: 2
         maxLength: 64
@@ -1821,7 +1849,7 @@ definitions:
       RequestInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Project:
+      Projects:
         type: array
         minItems: 1
         items:
@@ -1848,7 +1876,7 @@ definitions:
       ResponseInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Project:
+      Projects:
         type: array
         items:
           $ref: '#/definitions/Project'

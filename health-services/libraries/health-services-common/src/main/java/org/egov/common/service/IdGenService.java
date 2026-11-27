@@ -1,9 +1,9 @@
 package org.egov.common.service;
 
-import digit.models.coremodels.IdGenerationRequest;
-import digit.models.coremodels.IdGenerationResponse;
-import digit.models.coremodels.IdRequest;
-import digit.models.coremodels.IdResponse;
+import org.egov.common.contract.idgen.IdGenerationRequest;
+import org.egov.common.contract.idgen.IdGenerationResponse;
+import org.egov.common.contract.idgen.IdRequest;
+import org.egov.common.contract.idgen.IdResponse;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.tracer.model.CustomException;
@@ -37,7 +37,7 @@ public class IdGenService {
     }
 
     public List<String> getIdList(RequestInfo requestInfo, String tenantId, String idName,
-                                  String idFormat, Integer count) throws Exception {
+                                  String idFormat, Integer count)  {
         List<IdRequest> reqList = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             reqList.add(IdRequest.builder().idName(idName).format(idFormat).tenantId(tenantId).build());

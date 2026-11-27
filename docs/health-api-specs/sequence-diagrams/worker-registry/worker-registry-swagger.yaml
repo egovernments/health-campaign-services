@@ -1,0 +1,460 @@
+openapi: 3.0.3
+info:
+  title: Worker Registry API
+  description: |
+    Registry of campaign workers and their payment details (BANK / MTN), with a
+    mapping of workers to individuals (individual-service ids).
+    Source: health-services/worker-registry (Java / Spring Boot).
+
+    - Data is written directly to Postgres via JDBC (tables `eg_hcm_worker_registry`,
+      `eg_hcm_worker_individual_map`); there is no persister / indexer flow.
+    - Encrypted fields are handled by enc-client with the MDMS security policies
+      `WorkerEncrypt`, `WorkerSearchEncrypt` and `WorkerDecrypt`.
+    - Written workers are also put into the Redis hash `eg_hcm_worker_registry` (write only).
+    - Validation is all-or-nothing: if any worker fails a validator the whole request
+      is rejected with `VALIDATION_ERROR`.
+    - All errors are returned by the DIGIT tracer as HTTP 400 with an `Errors` array.
+  version: 1.0.0
+servers:
+  - url: https://{host}/worker
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: Worker
+  - name: Worker Individual Map
+
+paths:
+  /v1/bulk/_create:
+    post:
+      tags: [Worker]
+      summary: Create workers
+      description: |
+        Validators (in order): `WNonEmptyWorkerListValidator` (EMPTY_WORKERS_LIST),
+        `WIndividualIdValidator` (individual-service search when
+        `individual.validation.enabled`; INDIVIDUAL_NOT_FOUND / INDIVIDUAL_SERVICE_UNAVAILABLE),
+        `WTenantIdValidator` (MISSING_TENANT_ID), `WPaymentProviderValidator`.
+        Ids are generated through egov-idgen (`worker.id`) for workers without an id,
+        `rowVersion` is set to 1, workers are encrypted, cached and inserted.
+        One `eg_hcm_worker_individual_map` row is inserted per `individualIds` entry
+        (individual uniqueness is NOT checked on this path).
+        The response contains the decrypted workers.
+      operationId: workerBulkCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerBulkRequest'
+            example:
+              RequestInfo:
+                apiId: worker-registry
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              workers:
+                - tenantId: mz
+                  name: John Doe
+                  paymentProvider: BANK
+                  payeeName: John Doe
+                  bankAccount: "0123456789"
+                  bankCode: "044"
+                  beneficiaryCode: BEN12345
+                  individualIds: [IND-2026-00-000123]
+      responses:
+        '200':
+          description: Workers created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/bulk/_update:
+    post:
+      tags: [Worker]
+      summary: Update workers
+      description: |
+        Validators (in order): `WNullIdValidator` (NULL_ID), `WIndividualIdValidator`,
+        `WNonExistentEntityValidator` (NON_EXISTENT_ENTITY, INVALID_TENANT_ID),
+        `WTenantIdValidator` (MISSING_TENANT_ID), `WPaymentProviderValidator`,
+        `WRowVersionValidator` (MISMATCHED_ROW_VERSION - request `rowVersion` must equal the stored one).
+        Null fields are filled from the stored (decrypted) record; `auditDetails` and
+        `rowVersion` always come from the DB, then `rowVersion` is incremented.
+        `individualIds` are validated but the individual mapping is NOT updated.
+        `isDeleted: true` soft-deletes the worker. An empty `workers` list fails with
+        an unhandled `NoSuchElementException` (400).
+      operationId: workerBulkUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerBulkRequest'
+      responses:
+        '200':
+          description: Workers updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/_search:
+    post:
+      tags: [Worker]
+      summary: Search workers
+      description: |
+        `workerSearch.tenantId` is mandatory (INVALID_REQUEST otherwise). Criteria are
+        encrypted (`WorkerSearchEncrypt`) before querying, so `name` is an exact match
+        on the encrypted value. When `individualId` is given, matching worker ids are
+        resolved from `eg_hcm_worker_individual_map` (empty result if none). Only
+        non-deleted workers are returned, ordered by `createdTime DESC`, without paging.
+        `individualIds` in the response are populated only when the request has an
+        `individualId` filter or an `id` filter.
+      operationId: workerSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerSearchRequest'
+            example:
+              RequestInfo:
+                apiId: worker-registry
+                authToken: "<auth-token>"
+              workerSearch:
+                tenantId: mz
+                individualId: [IND-2026-00-000123]
+      responses:
+        '200':
+          description: Matching workers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/individual/bulk/_create:
+    post:
+      tags: [Worker Individual Map]
+      summary: Map individuals to workers
+      description: |
+        `WIndividualIdUniqueValidator`: an `individualId` may appear only once in the
+        request and must not already be mapped (non-deleted) in the tenant
+        (DUPLICATE_ENTITY), INVALID_TENANT_ID for an invalid tenant.
+        The worker id is not validated (an unknown `workerId` fails on the DB foreign key).
+        Ids default to a random UUID. Rows are inserted synchronously; the response
+        body is only a ResponseInfo.
+      operationId: workerIndividualMapBulkCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerIndividualMapBulkRequest'
+            example:
+              RequestInfo:
+                apiId: worker-registry
+                authToken: "<auth-token>"
+              workerIndividualMaps:
+                - tenantId: mz
+                  workerId: WR-0001
+                  individualId: IND-2026-00-000123
+      responses:
+        '202':
+          description: Mappings saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: |
+        Validation or business error. Validation failures use code `VALIDATION_ERROR`
+        with the per-entity ErrorDetails (codes such as EMPTY_WORKERS_LIST,
+        MISSING_TENANT_ID, NULL_ID, NON_EXISTENT_ENTITY, MISMATCHED_ROW_VERSION,
+        INDIVIDUAL_NOT_FOUND, INDIVIDUAL_SERVICE_UNAVAILABLE, INVALID_TENANT_ID,
+        DUPLICATE_ENTITY, MISSING_PAYEE_NAME, MISSING_BENEFICIARY_CODE,
+        MISSING_BANK_ACCOUNT, INVALID_BANK_ACCOUNT, INVALID_BANK_CODE,
+        MISSING_PAYEE_PHONE_NUMBER) serialized in `message`.
+        Other codes: INVALID_REQUEST, INVALID_TENANT_EXCEPTION, IDGEN_ERROR,
+        SERVICE_REQUEST_ERROR, ENCRYPTION_ERROR, ENCRYPTION_NULL_ERROR,
+        DECRYPTION_SERVICE_ERROR, DECRYPTION_NULL_ERROR, UNKNOWN_ERROR, and the
+        exception class name for unhandled errors (e.g. DB failures).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ResponseInfo: null
+            Errors:
+              - code: VALIDATION_ERROR
+                message: "[ErrorDetails(... errorCode=INVALID_BANK_ACCOUNT, errorMessage=Bank Account must be exactly 10 digits ...)]"
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      description: |
+        Optional. `uuid` is used for createdBy / lastModifiedBy ("system" when absent)
+        and roles drive decryption visibility.
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        mobileNumber: { type: string }
+        emailId: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        code: { type: string }
+        name: { type: string }
+        tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status: { type: string, example: successful }
+
+    AuditDetails:
+      type: object
+      readOnly: true
+      properties:
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    AdditionalFields:
+      type: object
+      description: Inherited from EgovModel; not persisted by this service
+      properties:
+        schema: { type: string }
+        version: { type: integer }
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              value: { type: string }
+
+    EgovModel:
+      type: object
+      required: [tenantId]
+      properties:
+        id:
+          type: string
+          minLength: 2
+          maxLength: 64
+        tenantId:
+          type: string
+          minLength: 2
+          maxLength: 1000
+          description: |
+            Annotated @NotNull/@Size but not enforced by bean validation
+            (nested list is not @Valid); checked by WTenantIdValidator for workers.
+        source: { type: string, description: Not persisted }
+        rowVersion:
+          type: integer
+          description: Set to 1 on create; must match the stored value on update
+        applicationId: { type: string, description: Not persisted }
+        hasErrors:
+          type: boolean
+          default: false
+          description: Internal validation flag
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    Worker:
+      allOf:
+        - $ref: '#/components/schemas/EgovModel'
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Generated via egov-idgen (worker.id) on create when absent; required on update (NULL_ID)
+            name:
+              type: string
+              maxLength: 256
+              description: NOT NULL in DB (not validated by the API). Encrypted at rest when configured in WorkerEncrypt policy
+            payeePhoneNumber:
+              type: string
+              description: Required when paymentProvider = MTN
+            paymentProvider:
+              type: string
+              enum: [BANK, MTN]
+              description: |
+                Free text in code (NOT NULL in DB); only BANK and MTN trigger
+                payment-field validation.
+            payeeName:
+              type: string
+              description: Required when paymentProvider = BANK or MTN
+            bankAccount:
+              type: string
+              pattern: '^[0-9]{10}$'
+              description: Required and exactly 10 digits when paymentProvider = BANK
+            bankCode:
+              type: string
+              pattern: '^$|^[0-9]{3}$|^[0-9]{9}$'
+              description: Blank, 3 or 9 digits when paymentProvider = BANK
+            beneficiaryCode:
+              type: string
+              pattern: '^[A-Za-z0-9]{1,35}$'
+              description: Required, alphanumeric, max 35 when paymentProvider = BANK
+            photoId:
+              type: string
+              description: Filestore id; also set from attendance PHOTO events when empty
+            signatureId:
+              type: string
+              description: Filestore id; set from first-attendance-log SIGNATURE events when empty
+            additionalDetails:
+              type: object
+              additionalProperties: true
+            isDeleted:
+              type: boolean
+              default: false
+            individualIds:
+              type: array
+              items: { type: string }
+              description: |
+                Individual-service ids. Validated against individual-service on
+                create and update; mapped only on create.
+
+    WorkerBulkRequest:
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        workers:
+          type: array
+          description: Must not be empty on create (EMPTY_WORKERS_LIST)
+          items:
+            $ref: '#/components/schemas/Worker'
+
+    WorkerResponse:
+      type: object
+      properties:
+        responseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        workers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Worker'
+
+    WorkerSearch:
+      type: object
+      required: [tenantId]
+      properties:
+        id:
+          type: array
+          items: { type: string }
+        individualId:
+          type: array
+          items: { type: string }
+        name:
+          type: string
+          description: Exact match (on the encrypted value)
+        tenantId:
+          type: string
+          description: Mandatory (INVALID_REQUEST)
+
+    WorkerSearchRequest:
+      type: object
+      required: [workerSearch]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        workerSearch:
+          $ref: '#/components/schemas/WorkerSearch'
+
+    WorkerIndividualMap:
+      allOf:
+        - $ref: '#/components/schemas/EgovModel'
+        - type: object
+          required: [workerId, individualId]
+          properties:
+            id:
+              type: string
+              description: Random UUID when absent
+            workerId:
+              type: string
+              description: Must reference an existing worker (DB foreign key)
+            individualId:
+              type: string
+              description: Unique within the request and among non-deleted maps of the tenant
+            isDeleted:
+              type: boolean
+              default: false
+
+    WorkerIndividualMapBulkRequest:
+      type: object
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        workerIndividualMaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkerIndividualMap'
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      properties:
+        id: { type: string }
+        parentId: { type: string }
+        code: { type: string }
+        message: { type: string }
+        description: { type: string }
+        params:
+          type: array
+          items: { type: string }

@@ -1,0 +1,441 @@
+# Code Build — provisioned by DIGIT-DevOps reusable-setup; do not edit the
+# branch / service option lists by hand — "Build — Setup" (sync mode) keeps them
+# current (service list from build-config.yml, branch list from live branches).
+# This workflow lives only on the default branch; pick the branch to build with
+# "Build from Branch" (leave GitHub's "Use workflow from" on the default branch).
+# Delegates the build (+ Trivy) to the central engine in DIGIT-DevOps.
+name: Build — Code
+run-name: Build — Code · ${{ (inputs.all_services && 'all services') || inputs.service }} (${{ inputs.build_branch }})
+on:
+  workflow_dispatch:
+    inputs:
+      build_branch:
+        description: "Build from Branch — pick the branch whose code is built"
+        required: true
+        type: choice
+        default: master
+        options:
+          - master
+          - develop
+          - "0.2"
+          - "0.4"
+          - "4879"
+          - Add-task-status-enum
+          - BACKUP-CONSOLE-DEVELOP-v0.3
+          - BACKUP-CONSOLE-DEVELOP-v0.4
+          - BACKUP-CONSOLE-DEVELOP-v1.0
+          - BUGFIX/HCMPRE-3840
+          - CCSD-1162-airflow-pipeline
+          - DATE-FIX-UPDATE
+          - Disable-sms-for-org_admin-role
+          - Downsync-for-CFL-demo
+          - Downsync-for-CFL-view
+          - Error-message-change
+          - GEOJSON_MANAGE
+          - HCM-1101
+          - HCM-1154
+          - HCM-1157
+          - HCM-1205
+          - HCM-1477
+          - HCM-556
+          - HCM-595
+          - HCM1.4-BuildConfig
+          - HCMEPRE-832-changes
+          - HCMPRE-0000-trivy-dashboard-appbypass
+          - HCMPRE-0000-trivy-dashboard-publish
+          - HCMPRE-0000-trivy-scan-master
+          - HCMPRE-1143-catch-mechanism-in-validators
+          - HCMPRE-1254-Comunity-household
+          - HCMPRE-1255-downsync-for-cfl
+          - HCMPRE-1288-service-definition-filter
+          - HCMPRE-1437-analytics-raw-response-transform
+          - HCMPRE-1437-analytics-raw-response-transform-5f98d99
+          - HCMPRE-1437-beneficiary-igden-tenant-specific
+          - HCMPRE-1437-customize-2-0-worker-registry
+          - HCMPRE-1437-customize-2-1-product
+          - HCMPRE-1437-health-notification-service-cache
+          - HCMPRE-1437-health-notification-service-cache-ca7303e
+          - HCMPRE-1437-master
+          - HCMPRE-1437-master-1ffeec1
+          - HCMPRE-1437-master-620d748
+          - HCMPRE-1437-master-7ce35df
+          - HCMPRE-1437-master-7f8a6b8
+          - HCMPRE-1437-master-aa57e79
+          - HCMPRE-1437-master-b91815e
+          - HCMPRE-1437-master-c5dff1d
+          - HCMPRE-1437-master-d673cfa
+          - HCMPRE-1437-nigeria-go-deep-push-notification-batch
+          - HCMPRE-1437-nigeria-go-deep-push-notification-batch-7d2ba39
+          - HCMPRE-1479-Elastic-Search-downsync
+          - HCMPRE-1543-data-create-facility
+          - HCMPRE-1572-project-process
+          - HCMPRE-1573-reverse-data-transform
+          - HCMPRE-1578-new
+          - HCMPRE-1600-API-contract-Project-Services
+          - HCMPRE-169
+          - HCMPRE-1763
+          - HCMPRE-1763_hrms-skill
+          - HCMPRE-1788-project-creation-entity-persistence
+          - HCMPRE-1871-localityCode
+          - HCMPRE-1932
+          - HCMPRE-2023-RestTemplate-KafkaCorrelationId
+          - HCMPRE-2219
+          - HCMPRE-2258-user-jurisdiction-enrichment
+          - HCMPRE-2268
+          - HCMPRE-2298
+          - HCMPRE-2332-health-hrms-Search-API-shouldnot-return-employees-with-userserviceuuid-as-null
+          - HCMPRE-2333-HRMS-Creation-System-allows-duplicate-usernames-with-different-cases
+          - HCMPRE-2371-name-regex-clone-delivery-rules
+          - HCMPRE-2371-outside-household-post
+          - HCMPRE-2371-pr-2389-review-fixes
+          - HCMPRE-2389-Service-Definition-error-while-update
+          - HCMPRE-2389-Update-Service-Definition-Error
+          - HCMPRE-2389-Valid-Service-exists-corresponding-to-Service-Definition-error-is-thrown-when-tried-to-update-Service-definition
+          - HCMPRE-2389-Valid-Service-exists-corresponding-to-Service-Definition-error-master
+          - HCMPRE-2397-oh-campaign-types-test
+          - HCMPRE-240
+          - HCMPRE-2431-migration-local-setup
+          - HCMPRE-2525
+          - HCMPRE-2548
+          - HCMPRE-2618-HouseholdType
+          - HCMPRE-2638
+          - HCMPRE-2656-HCM-Services-Household
+          - HCMPRE-2656-HCM-Services-bauchi-impl
+          - HCMPRE-2657-bauchi-impl
+          - HCMPRE-2657-bauchi-impl-chad
+          - HCMPRE-2657-bauchi-impl-hrms
+          - HCMPRE-2657-central-fix
+          - HCMPRE-2657-impel
+          - HCMPRE-2667
+          - HCMPRE-2687-referral
+          - HCMPRE-2701-modified
+          - HCMPRE-2701-new
+          - HCMPRE-2703-Fix-individual-Search
+          - HCMPRE-2709
+          - HCMPRE-2709-modified
+          - HCMPRE-271
+          - HCMPRE-2715-Household-update-Sync-failure-after-changing-household-head
+          - HCMPRE-2737-pgr
+          - HCMPRE-2747-Identifier-changes
+          - HCMPRE-2747-Identifier-changes-irs
+          - HCMPRE-277-transformer-changes
+          - HCMPRE-2867-INDIVIDUAL
+          - HCMPRE-2867-INDIVIDUAL-SEARCH
+          - HCMPRE-3030-Individual-Query-Enhancement
+          - HCMPRE-3036-Individual-Query-Enhancement
+          - HCMPRE-3037-TotalCount-Query-Fix
+          - HCMPRE-3045-abdm-integration
+          - HCMPRE-3045-abdm-integration-validatoin-check
+          - HCMPRE-3067-Query-For-Individual
+          - HCMPRE-3432-TRANSFORMER
+          - HCMPRE-3432-USER-DEACTIVATION-FIX
+          - HCMPRE-4491
+          - HCMPRE-4496-ErrorMsg
+          - HCMPRE-4506-readme
+          - HCMPRE-461
+          - HCMPRE-470
+          - HCMPRE-492
+          - HCMPRE-493
+          - HCMPRE-499-test
+          - HCMPRE-586-test
+          - HCMPRE-589
+          - HCMPRE-598
+          - HCMPRE-599-changes
+          - HCMPRE-658
+          - HCMPRE-804-SQL-injection
+          - HCMPRE-832
+          - HCMPRE-832-assumptions
+          - HCMPRE-853
+          - HCMPRE-875-issue-fixes
+          - HCMPRE-884-Qurey-optimization
+          - HCMPRE-9999-trivy-scan-fix
+          - HCMPRE-9999-trivy-scan-fix-2
+          - HCMPRE-9999-trivy-security-scan
+          - HCMPRE-Individual-Password-Vul
+          - HCMPRE-Individual-Roles-Vul
+          - HCMPRE-codeowners
+          - HCMPRE_1458_ADMINISTRATION_FAILED-i
+          - HCMv1.4-impel-transformer
+          - HDD-5226-HCM-v2.1
+          - HDDF-1277
+          - HDDF-1277-base
+          - HDDF-1277-hcmpre-1330-9
+          - HDDF-1277-osun
+          - HDDF-1277-update
+          - HDDF-1282
+          - HDDF-1638
+          - HDDF-1638-attendance-project
+          - HDDF-1638-duplicate-fix
+          - HDDF-1775
+          - HDDF-2209
+          - HDDF-2209-2
+          - HDDF-2209-2-skills
+          - HDDF-2209-individual
+          - HDDF-2437
+          - HDDF-2562
+          - HDDF-2588-Individual
+          - HDDF-2588-Individual-impl
+          - HDDF-2588-capture-bank-details
+          - HDDF-2588-impl
+          - HDDF-2588-impl-multiarch
+          - HDDF-2608
+          - HDDF-2933-bauchi-stock-search-model-update
+          - HDDF-3296
+          - HDDF-3432-TRANSFORMER-USER-FIX
+          - HDDF-5226
+          - HDDF-5226-DEMO-TRANSFORMER
+          - HDDF-5226-ERROR-CATCH
+          - HDDF-5226-ERROR-PATCH-TRANSFORMER
+          - HDDF-5226-chad
+          - HDDF-698
+          - HLM-1572
+          - HLM-1573
+          - HLM-1574
+          - HLM-1574-B
+          - HLM-1576-|-SumComputedFields
+          - HLM-1777
+          - HLM-1783
+          - HLM-1864
+          - HLM-1882
+          - HLM-1885-|-sorting-by-key-value
+          - HLM-1920
+          - HLM-2019
+          - HLM-2022
+          - HLM-2304
+          - HLM-2474
+          - HLM-2568
+          - HLM-2590
+          - HLM-2667
+          - HLM-2728
+          - HLM-3069-ad-build-config
+          - HLM-3986
+          - HLM-4307
+          - HLM-4496-individual-uuid-changes
+          - HLM-4879
+          - HLM-4894
+          - HLM-4894-consumer
+          - HLM-5004-enhance-inventory-flow
+      all_services:
+        description: "Build ALL services from build-config.yml (ignores the Service pick)"
+        required: false
+        type: boolean
+        default: false
+      service:
+        description: "Service image to build (from build-config.yml) — ignored when All services is on"
+        required: false
+        type: choice
+        options:
+          - airflow-trigger-service
+          - attendance
+          - auth-proxy
+          - beneficiary-idgen
+          - boundary-management
+          - census-service
+          - dashboard-analytics
+          - egov-hrms
+          - egov-notification-mail
+          - egov-notification-push
+          - egov-survey-services
+          - error-handler
+          - excel-ingestion
+          - facility
+          - fhir-supplychain-transformer
+          - fhiradapter
+          - geopode-adapter
+          - health-attendance
+          - health-hrms
+          - health-individual
+          - health-notification-service
+          - health-pgr-services
+          - health-project
+          - health-service-request
+          - health-services-common
+          - health-services-models
+          - household
+          - inbox
+          - individual
+          - microplan-ui
+          - pgr-services
+          - plan-service
+          - product
+          - project
+          - project-factory
+          - referralmanagement
+          - resource-generator
+          - service-request
+          - stock
+          - transformer
+          - user-otp
+          - workbench-ui
+          - worker-registry
+  # Auto-build on merge: only the services whose paths changed (see the resolve job).
+  push:
+    branches: [develop, master]
+jobs:
+  # Resolve the build matrix: every service when all_services is on, else the one
+  # picked. Read from the branch being built so new services need no re-sync.
+  resolve:
+    # Repo switch DELIVERY_MODE=automatic enables auto build+deliver on a push; manual (default)
+    # means a merge does nothing (you still dispatch builds by hand). Dispatch always runs.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.DELIVERY_MODE == 'automatic' }}
+    runs-on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+    outputs:
+      services: ${{ steps.list.outputs.services }}
+      image_tag: ${{ steps.list.outputs.image_tag }}
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.build_branch || github.ref_name }}
+      - name: Install yq
+        run: |
+          VERSION="v4.54.1"
+          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/download/${VERSION}/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+      - name: Build the service matrix
+        id: list
+        env:
+          ALL: ${{ inputs.all_services }}
+          SERVICE: ${{ inputs.service }}
+          CONFIG: build/build-config.yml
+          BRANCH: ${{ inputs.build_branch || github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            test -f "$CONFIG" || { echo "::error::$CONFIG not found on $BRANCH"; exit 1; }
+            # Changed files in this push; on a first push (no before) fall back to HEAD~1.
+            if printf '%s' "$BEFORE" | grep -qE '^0+$' || [ -z "$BEFORE" ]; then
+              CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+            else
+              CHANGED=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" --jq '.files[].filename' 2>/dev/null || true)
+            fi
+            SVC=""
+            while read -r IMG WD; do
+              { [ -n "$IMG" ] && [ -n "$WD" ]; } || continue
+              case "$IMG" in *-db) continue;; esac
+              if printf '%s\n' "$CHANGED" | grep -q "^$WD/"; then SVC="$SVC$IMG"$'\n'; fi
+            done < <(yq eval '.config[].build[] | .["image-name"] + " " + .["work-dir"]' "$CONFIG" 2>/dev/null)
+            SVC=$(printf '%s' "$SVC" | grep -v '^$' | grep -vxF placeholder | sort -u)
+            if [ -z "$SVC" ]; then
+              echo "No service paths changed on $BRANCH; nothing to build or deliver."
+              echo "services=[]" >> "$GITHUB_OUTPUT"
+              echo "image_tag=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          elif [ "$ALL" = "true" ]; then
+            test -f "$CONFIG" || { echo "::error::$CONFIG not found on $BRANCH"; exit 1; }
+            SVC=$(yq eval '.config[].build[]."image-name"' "$CONFIG" | grep -vE -- '-db$' | grep -vxF placeholder | sort -u)
+            [ -n "$SVC" ] || { echo "::error::no services found in $CONFIG"; exit 1; }
+          else
+            SVC="$SERVICE"
+            { [ -n "$SVC" ] && [ "$SVC" != "placeholder" ]; } || { echo "::error::pick a service, or turn on All services"; exit 1; }
+          fi
+          JSON=$(printf '%s\n' "$SVC" | grep -v '^$' | jq -R . | jq -cs .)
+          echo "services=$JSON" >> "$GITHUB_OUTPUT"
+          # The tag the build uses: <branch>-<short-sha> (same for every service this commit).
+          echo "image_tag=${BRANCH##*/}-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Will build: $JSON"
+  # One engine call per service, run in parallel (fail-fast:false so a blocked or
+  # failed service doesn't cancel the rest). For all-services each leg publishes
+  # only its own dashboard subtree (publish_home:false) — the shared landing index
+  # is rebuilt once by the `publish` job below, so parallel legs never race on it.
+  # A single-service build keeps publish_home:true (it owns the index itself).
+  build:
+    needs: resolve
+    permissions:
+      contents: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.resolve.outputs.services) }}
+    uses: egovernments/DIGIT-DevOps/.github/workflows/reusable-build.yaml@reusable-build-v1
+    with:
+      service: ${{ matrix.service }}
+      build_branch: ${{ inputs.build_branch }}
+      # Repo var BUILD_RUNNER overrides the runner (e.g. a self-hosted label); default GitHub-hosted.
+      runs_on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+      enable_trivy: true
+      scan_branches: ${{ vars.TRIVY_SCAN_BRANCHES }}
+      publish_home: ${{ !inputs.all_services }}
+      # Setup sets this to false for build-only repos without a dashboard (Pages).
+      # The Trivy gate still runs; findings go to the job summary. Default: dashboard on.
+      publish_dashboard: true
+    secrets:
+      DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+      DOCKER_ACCESS_TOKEN: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+      # Optional: lets the build push the gh-pages dashboard as the GitHub App
+      # (on its ruleset bypass) where github-actions[bot] is blocked. Unset → GITHUB_TOKEN.
+      build_app_client_id: ${{ secrets.BUILD_APP_CLIENT_ID }}
+      build_app_private_key: ${{ secrets.BUILD_APP_PRIVATE_KEY }}
+  # Deliver: on a develop/master build, promote each built service to its env's Kargo
+  # stage. No-op unless KARGO_STAGES is set. Auto-promotes to DEV (unified-dev).
+  deliver:
+    needs: [resolve, build]
+    if: ${{ needs.build.result == 'success' && vars.DELIVERY_MODE == 'automatic' && vars.KARGO_STAGES != '' && contains(fromJSON('["develop","master"]'), inputs.build_branch || github.ref_name) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.resolve.outputs.services) }}
+    uses: egovernments/DIGIT-DevOps/.github/workflows/reusable-deliver.yaml@reusable-build-v1
+    with:
+      service: ${{ matrix.service }}
+      image_tag: ${{ needs.resolve.outputs.image_tag }}
+      environment: DEV
+      runs_on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+      kargo_url: ${{ vars.KARGO_URL }}
+      kargo_stages: ${{ vars.KARGO_STAGES }}
+    secrets: inherit
+  # All-services: rebuild the dashboard landing index once (from every service's
+  # summary the parallel legs published) and roll up the overall outcome.
+  publish:
+    needs: [resolve, build]
+    if: ${{ always() && inputs.all_services }}
+    runs-on: ${{ vars.BUILD_RUNNER || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.build_branch }}
+      # Push the dashboard home as the GitHub App when creds are set (ruleset
+      # bypass); no creds → steps skip and GITHUB_TOKEN is used. ${PK:+yes} never
+      # echoes the key.
+      - name: Detect Pages app creds
+        id: pages_creds
+        env:
+          PK: ${{ secrets.BUILD_APP_PRIVATE_KEY }}
+        run: echo "have=${PK:+yes}" >> "$GITHUB_OUTPUT"
+      - name: Mint Pages push token
+        id: pages_token
+        if: steps.pages_creds.outputs.have == 'yes'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.BUILD_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BUILD_APP_PRIVATE_KEY }}
+      - name: Refresh dashboard home + roll-up
+        env:
+          GH_TOKEN: ${{ steps.pages_token.outputs.token || github.token }}
+          RESULT: ${{ needs.build.result }}
+          SERVICES: ${{ needs.resolve.outputs.services }}
+          BRANCH: ${{ inputs.build_branch }}
+        run: |
+          set -euo pipefail
+          if [ -f .trivy/dashboard/publish.sh ]; then
+            bash .trivy/dashboard/publish.sh home || echo "::warning::dashboard home refresh failed"
+          fi
+          COUNT=$(printf '%s' "$SERVICES" | jq 'length' 2>/dev/null || echo "?")
+          {
+            echo "### Build — Code · all services"
+            echo ""
+            echo "- Branch: \`$BRANCH\`"
+            echo "- Services dispatched: **$COUNT** (built in parallel)"
+            echo "- Matrix result: **$RESULT** — each service is a separate job above; a red leg means that service's build or Trivy gate failed, the others still ran."
+            echo "- Per-service scan reports: the Trivy dashboard under \`/security/trivy\`."
+          } >> "$GITHUB_STEP_SUMMARY"

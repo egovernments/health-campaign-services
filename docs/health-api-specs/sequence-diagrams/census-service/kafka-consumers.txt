@@ -1,0 +1,73 @@
+@startuml
+title Census - Kafka Consumers (Resource Census Create, Facility Catchment Update)
+!theme vibrant
+participant ResourceGenerator as pf
+participant PlanService as ps
+queue Kafka as k
+participant CensusService as s
+participant BoundaryService as bs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+group Resource census create (/resource-census-create-topic)
+    pf -> k: CensusRequest /resource-census-create-topic
+    activate k
+    s -> k: Consume CensusRequest
+    activate s
+    s -> s: partnerAssignmentValidationEnabled = false
+    s -> s: Run the Census Create flow
+    note right
+        Same as create-api.txt, without the
+        plan-service partner / jurisdiction check
+    end note
+    alt any exception
+        s -> s: Log "Error in resource census consumer"
+        note right
+            Message is dropped, no retry
+        end note
+    end
+    deactivate s
+end
+
+group Facility catchment update (/update-plan-facility)
+    ps -> k: PlanFacilityRequestDTO /update-plan-facility
+    s -> k: Consume PlanFacilityRequestDTO
+    activate s
+    s -> s: Compare initiallySetServiceBoundaries\nwith current serviceBoundaries
+    s -> s: Boundaries to update = added or removed boundaries
+    s -> db: Census search (tenantId, source = planConfigurationId,\nareaCodes = changed boundaries)
+    activate db
+    db -> s: Census records
+    deactivate db
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+    alt boundaries removed
+        s -> s: Remove facilityId / facilityName from additionalDetails,\nfacilityAssigned = false
+    else boundaries added
+        s -> s: Set facilityId / facilityName in additionalDetails,\nfacilityAssigned = true
+    end
+    s -> s: Enrich jurisdictionMapping
+    s -> db: Batch UPDATE census (status, assignee, additional_details,\nfacility_assigned, audit)
+    activate db
+    deactivate db
+    s -> k: BulkCensusRequest /census-bulk-update-topic
+    alt any exception
+        s -> s: Log "Error in census consumer"
+    end
+    deactivate s
+end
+
+group async
+    idx -> k: Consume /census-bulk-update-topic
+    activate idx
+    idx -> el: Store Census /census-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+@enduml

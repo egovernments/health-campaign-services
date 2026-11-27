@@ -2,12 +2,14 @@ package org.egov.household.household.member.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.validator.Validator;
+import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.household.service.IndividualService;
 import org.egov.tracer.model.CustomException;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD;
 import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE;
 import static org.egov.household.utils.ValidatorUtil.getHouseholdMembersWithNonNullIndividuals;
@@ -34,10 +37,14 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
 
     private final IndividualService individualService;
 
+    private final HouseholdMemberConfiguration householdMemberConfiguration;
+
     public HmUniqueIndividualValidator(HouseholdMemberRepository householdMemberRepository,
-                                       IndividualService individualService) {
+                                       IndividualService individualService,
+                                       HouseholdMemberConfiguration householdMemberConfiguration) {
         this.householdMemberRepository = householdMemberRepository;
         this.individualService = individualService;
+        this.householdMemberConfiguration = householdMemberConfiguration;
     }
 
     @Override
@@ -60,24 +67,36 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
                     requestInfo,
                     tenantId
             );
+            // Gate ONLY the INDIVIDUAL_NOT_FOUND emission behind the flag; the search, the individualId/
+            // individualClientReferenceId back-fill, and the INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD uniqueness
+            // check all keep running. When the flag is OFF, a member whose individual is still propagating
+            // persists instead of a false not-found reject.
+            boolean suppressNotFound = !householdMemberConfiguration.isHouseholdMemberRelationshipValidation();
             validHouseholdMembers.forEach(householdMember -> {
                 Individual individual = individualService.validateIndividual(householdMember,
-                        searchResponse, errorDetailsMap);
+                        searchResponse, errorDetailsMap, suppressNotFound);
                 if (individual != null) {
                     householdMember.setIndividualId(individual.getId());
                     householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
 
                     log.info("finding individuals mappings in household member");
-                    List<HouseholdMember> individualSearchResult = householdMemberRepository
-                            .findIndividual(individual.getId());
-                    if(!individualSearchResult.isEmpty()) {
-                        Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
-                                .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
-                                .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
-                                        INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
-                                .build();
-                        log.info("found error in individual mapping {}", error);
+                    // Check if the individual is already a member of a household
+                    // If yes, add an error to the error details map
+                    try {
+                        List<HouseholdMember> individualSearchResult = householdMemberRepository
+                                .findIndividual(tenantId, individual.getId()).getResponse();
+                        if(!individualSearchResult.isEmpty()) {
+                            Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
+                                    .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
+                                    .type(Error.ErrorType.NON_RECOVERABLE)
+                                    .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
+                                            INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
+                                    .build();
+                            log.info("found error in individual mapping {}", error);
+                            populateErrorDetails(householdMember, error, errorDetailsMap);
+                        }
+                    } catch (InvalidTenantIdException exception) {
+                        Error error = getErrorForInvalidTenantId(tenantId, exception);
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                     }
                 }

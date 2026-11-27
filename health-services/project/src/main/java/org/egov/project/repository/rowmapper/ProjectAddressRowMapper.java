@@ -2,7 +2,7 @@ package org.egov.project.repository.rowmapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.project.Address;
 import org.egov.common.models.project.AddressType;
 import org.egov.common.models.project.Project;
@@ -86,6 +86,10 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
                 .boundaryType(address_boundaryType)
                 .boundary(address_boundary)
                 .build();
+
+        if (address_id == null) {
+            return null;
+        }
 
         return address;
     }

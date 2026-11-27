@@ -1,0 +1,60 @@
+@startuml
+title Census - Search
+!theme vibrant
+participant Client as c
+participant CensusService as s
+participant WorkflowService as wf
+database Database as db
+
+c -> s : POST /census-service/_search
+activate s
+
+s -> s: Validate request body (@Valid)\n(CensusSearchCriteria required)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+alt areaCodes provided but empty
+    s -> s: Return empty list, TotalCount 0
+else
+    s -> db: SELECT id FROM census WHERE <criteria>\nORDER BY last_modified_time DESC OFFSET ? LIMIT ?
+    activate db
+    db -> s: Census ids
+    deactivate db
+    note right
+        Criteria: id, ids, tenantId, source, status,
+        facilityAssigned, effectiveTo (0 = IS NULL),
+        areaCodes, assignee, jurisdiction.
+        Default limit 10, max 100, offset 0
+    end note
+    opt ids found
+        s -> db: SELECT census LEFT JOIN population_by_demographics,\nadditional_field WHERE id IN (...)
+        activate db
+        db -> s: Census records
+        deactivate db
+    end
+    s -> db: SELECT COUNT(id) for criteria
+    activate db
+    db -> s: TotalCount
+    deactivate db
+end
+
+s -> wf: /egov-workflow-v2/egov-wf/businessservice/_search\n?tenantId&businessServices=CENSUS
+activate wf
+alt business service not found
+    wf -> s: Empty
+    s -> c: HttpStatus: 400 NO_BUSINESS_SERVICE_DATA_FOUND
+else
+    wf -> s: BusinessService states
+    deactivate wf
+end
+s -> db: SELECT COUNT(id), status FROM census\nWHERE tenant_id, source, jurisdiction GROUP BY status
+activate db
+db -> s: Status counts
+deactivate db
+s -> s: Add 0 for workflow states with no records
+
+s -> c: HttpStatus: 200 Census, TotalCount, StatusCount
+deactivate s
+
+@enduml

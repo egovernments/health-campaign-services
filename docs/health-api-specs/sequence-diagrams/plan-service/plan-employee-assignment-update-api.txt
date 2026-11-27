@@ -1,0 +1,89 @@
+@startuml
+title Plan Service - Plan Employee Assignment Update
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant ProjectFactory as pf
+participant MdmsService as mdms
+queue Kafka as k
+participant PersisterService as prs
+database Database as db
+
+c -> s : POST /plan-service/employee/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(same constraints as create)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validateUpdate
+    s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = <root tenant>
+    activate db
+    db -> s: Plan configuration
+    deactivate db
+
+    alt id missing
+        s -> c: HttpStatus: 400 PLAN_EMPLOYEE_ASSIGNMENT_ID_EMPTY
+    end
+    s -> db: SELECT plan_employee_assignment WHERE id = ? AND tenant_id = ?\nAND plan_configuration_id = ? AND employee_id IN (?)\nAND role IN (?) AND active = true
+    activate db
+    db -> s: Existing assignment
+    deactivate db
+    alt assignment not found
+        s -> c: HttpStatus: 400 INVALID_PLAN_EMPLOYEE_ASSIGNMENT
+    end
+
+    opt active == true in request
+        s -> pf: /project-factory/v1/project-type/search\n(ids = [plan configuration campaignId], root tenant)
+        activate pf
+        pf -> s: CampaignDetails (boundaries)
+        deactivate pf
+        alt no campaign details
+            s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+        end
+        s -> mdms: /mdms-v2/v1/_search (root tenant)
+        activate mdms
+        mdms -> s: MdmsRes
+        deactivate mdms
+        alt MdmsRes empty
+            s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+        else no campaign boundary of type hierarchyLevel
+            s -> c: HttpStatus: 400 INVALID_HIERARCHY_LEVEL
+        else jurisdiction not a campaign boundary of that level
+            s -> c: HttpStatus: 400 INVALID_JURISDICTION
+        else invalid ROOT role jurisdiction
+            s -> c: HttpStatus: 400 INVALID_ROOT_EMPLOYEE_JURISDICTION
+        else non-ROOT jurisdiction at lowest or highest hierarchy
+            s -> c: HttpStatus: 400 INVALID_EMPLOYEE_JURISDICTION
+        end
+    end
+end
+
+group enrichUpdate
+    s -> s: Update auditDetails (lastModifiedBy, lastModifiedTime)
+end
+
+s -> k: PlanEmployeeAssignmentRequestDTO\n/plan-employee-assignment-update-topic
+activate k
+s -> c: HttpStatus: 202 PlanEmployeeAssignment
+deactivate s
+
+group async
+    prs -> k: Consume /plan-employee-assignment-update-topic
+    activate prs
+    prs -> db: UPDATE plan_employee_assignment SET jurisdiction, hierarchy_level,\nadditional_details, active, last_modified_by, last_modified_time\nWHERE id = ?
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+
+note over s
+    If the plan configuration is not found the service fails with an
+    IndexOutOfBoundsException (HTTP 400, unhandled) instead of
+    INVALID_PLAN_CONFIG_ID. The existence check searches active = true
+    only, so an inactive assignment cannot be re-activated.
+end note
+
+@enduml

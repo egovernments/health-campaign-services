@@ -1,0 +1,161 @@
+@startuml
+title Plan Service - Plan (Estimation) Update
+!theme vibrant
+participant Client as c
+participant PlanService as s
+participant MdmsService as mdms
+participant ProjectFactory as pf
+participant BoundaryService as bs
+participant WorkflowService as wf
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ElasticSearch as el
+database Database as db
+
+c -> s : POST /plan-service/plan/_update
+activate s
+
+s -> s: Validate request body (@Valid)\n(same constraints as create)
+alt request body validation fails
+    s -> c: HttpStatus: 400 { Errors }
+end
+
+group validatePlanUpdate
+    s -> db: SELECT id FROM plan WHERE id IN (?)\n+ full plan fetch
+    activate db
+    db -> s: Existing plan
+    deactivate db
+    alt plan not found
+        s -> c: HttpStatus: 400 INVALID_PLAN_ID
+    end
+    s -> s: Copy boundaryAncestralPath from existing plan
+
+    s -> mdms: /mdms-v2/v1/_search (root tenant)
+    activate mdms
+    mdms -> s: MdmsRes
+    deactivate mdms
+    alt MdmsRes empty
+        s -> c: HttpStatus: 400 NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT
+    end
+    s -> pf: /project-factory/v1/project-type/search (ids = [campaignId])
+    activate pf
+    pf -> s: CampaignDetails (hierarchyType)
+    deactivate pf
+    alt no campaign details
+        s -> c: HttpStatus: 400 NO_CAMPAIGN_DETAILS_FOUND_FOR_GIVEN_CAMPAIGN_ID
+    end
+    s -> bs: /boundary-service/boundary-hierarchy-definition/_search\n(tenantId, hierarchyType)
+    activate bs
+    bs -> s: BoundaryHierarchy
+    deactivate bs
+
+    alt activities == null
+        s -> c: HttpStatus: 400 ACTIVITIES_CANNOT_BE_NULL
+    else duplicate activity codes
+        s -> c: HttpStatus: 400 DUPLICATE_ACTIVITY_CODES
+    else no campaignId and no activities
+        s -> c: HttpStatus: 400 PLAN_ACTIVITIES_MANDATORY
+    else campaignId present and activities not empty
+        s -> c: HttpStatus: 400 PLAN_ACTIVITIES_NOT_ALLOWED
+    else plannedEndDate < plannedStartDate
+        s -> c: HttpStatus: 400 INVALID_ACTIVITY_DATES
+    else activity ids not unique
+        s -> c: HttpStatus: 400 DUPLICATE_ACTIVITY_UUIDS
+    end
+
+    opt planConfigurationId present
+        s -> db: SELECT plan_configuration WHERE id = ? AND tenant_id = ?
+        activate db
+        db -> s: Plan configuration
+        deactivate db
+        alt not found
+            s -> c: HttpStatus: 400 INVALID_PLAN_CONFIG_ID
+        end
+    end
+
+    alt no planConfigurationId and no resources
+        s -> c: HttpStatus: 400 PLAN_RESOURCES_MANDATORY
+    else resource ids not unique
+        s -> c: HttpStatus: 400 DUPLICATE_RESOURCE_UUIDS
+    else target ids not unique
+        s -> c: HttpStatus: 400 DUPLICATE_TARGET_UUIDS
+    else invalid resource / target activity linkage
+        s -> c: HttpStatus: 400 INVALID_RESOURCE_ACTIVITY_LINKAGE / INVALID_TARGET_ACTIVITY_LINKAGE
+    else invalid or cyclic dependency
+        s -> c: HttpStatus: 400 INVALID_ACTIVITY_DEPENDENCY / CYCLIC_ACTIVITY_DEPENDENCY
+    else metric / unit not in MDMS
+        s -> c: HttpStatus: 400 METRIC_NOT_FOUND_IN_MDMS / METRIC_UNIT_NOT_FOUND_IN_MDMS
+    else RequestInfo.userInfo missing
+        s -> c: HttpStatus: 400 USERINFO_MISSING
+    end
+
+    s -> db: SELECT plan_employee_assignment (tenantId, planConfigurationId,\nemployeeId = user uuid, plan estimation approver roles, active = true)
+    activate db
+    db -> s: PlanEmployeeAssignment
+    deactivate db
+    alt no assignment found
+        s -> c: HttpStatus: 400 PLAN_EMPLOYEE_ASSIGNMENT_FOR_BOUNDARY_NOT_FOUND
+    else no assignee jurisdiction in boundaryAncestralPath
+        s -> c: HttpStatus: 400 JURISDICTION_NOT_FOUND
+    end
+    s -> s: Set assigneeJurisdiction
+    s -> s: Enrich jurisdictionMapping from hierarchy + ancestral path
+end
+
+group enrichPlanUpdate
+    s -> s: Generate ids for new activities (and their conditions),\nresources, targets, additionalFields
+    s -> s: Empty dependencies => [""]
+    s -> s: auditDetails.lastModifiedTime = now
+end
+
+opt workflow present in request
+    s -> db: SELECT plan_employee_assignment (ancestral boundaries,\nplan estimation approver roles)
+    activate db
+    db -> s: PlanEmployeeAssignments
+    deactivate db
+    s -> s: Auto-assign assignee\n(INITIATE / intermediate / SEND_BACK_FOR_CORRECTION)
+    s -> wf: /egov-workflow-v2/egov-wf/process/_transition\n(businessService PLAN_ESTIMATION)
+    activate wf
+    alt workflow transition fails
+        wf -> s: Error
+        s -> c: HttpStatus: 400 WORKFLOW_INTEGRATION_ERROR
+    else success
+        wf -> s: ProcessInstance
+        deactivate wf
+        s -> s: status from workflow state, update auditDetails
+    end
+end
+
+s -> k: PlanRequestDTO /update-plan
+activate k
+s -> c: HttpStatus: 202 Plan
+deactivate s
+
+group async
+    prs -> k: Consume /update-plan
+    activate prs
+    prs -> db: UPDATE plan SET status, assignee, additional_details,\nlast_modified_by, last_modified_time
+    activate db
+    deactivate db
+    prs -> db: UPSERT plan_activity, plan_activity_condition, plan_resource,\nplan_target, plan_additional_field
+    activate db
+    deactivate db
+    deactivate prs
+    idx -> k: Consume /update-plan
+    activate idx
+    idx -> el: Store Plan /plan-index-v1
+    activate el
+    deactivate el
+    deactivate idx
+end
+deactivate k
+
+note over s
+    Uniqueness of activity / resource / target ids is checked on a Set,
+    so adding two or more new entries without ids in one update
+    (all null) fails with DUPLICATE_*_UUIDS.
+    Without a workflow, lastModifiedBy is not refreshed.
+end note
+
+@enduml

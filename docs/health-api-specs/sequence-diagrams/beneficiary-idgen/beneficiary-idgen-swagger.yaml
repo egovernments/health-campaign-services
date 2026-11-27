@@ -1,0 +1,506 @@
+openapi: 3.0.3
+info:
+  title: Beneficiary IdGen API
+  description: |
+    Pre-generates a pool of unique beneficiary IDs per tenant (async, via Kafka) and
+    dispatches non-overlapping blocks of them to a user + device, with Redis-backed
+    total / per-day limits.
+    Source: core-services/beneficiary-idgen (Java / Spring Boot), controller
+    `IdGenerationController` mapped at `/id/`.
+
+    Error handling (service `GlobalExceptionHandler`, @RestControllerAdvice):
+    - Bean validation failures (`MethodArgumentNotValidException`) return HTTP 400
+      with `ErrorRes` (`Errors[0].code` = "400 BAD_REQUEST", `message` = "Invalid input",
+      `params` = field -> message).
+    - All other exceptions (e.g. CustomException USER_DEVICE_LIMIT_EXCEEDED,
+      NO IDS AVAILABLE) are handled by a method with no @ResponseStatus, so they are
+      returned with HTTP 200 and an `ErrorRes` whose `ResponseInfo.status` is FAILED,
+      `Errors[0].code` is "400 BAD_REQUEST" and `message` is the exception message.
+      The original error code is not returned. (Assumes this handler takes precedence
+      over the tracer ExceptionAdvise; both have the lowest order.)
+  version: 1.1.1
+servers:
+  - url: https://{host}/beneficiary-idgen
+    variables:
+      host:
+        default: unified-dev.digit.org
+tags:
+  - name: IdPool
+
+paths:
+  /id/id_pool/_generate:
+    post:
+      tags: [IdPool]
+      summary: Queue generation of an ID pool
+      description: |
+        For each batch, splits `totalCount` into chunks of `id.pool.generation.max.size`
+        (default 50000) and publishes each chunk to `id-gen-consumer-bulk-create-topic`.
+        The consumer fetches the `IdFormat` for idname `id.pool.number` from MDMS
+        (`common-masters.IdFormat`), adds a 5% buffer when the format has a random
+        `[d{n}]` token, generates the IDs (DB sequences padded to 12 digits) and publishes
+        them in batches of 1000 to `save-in-id-pool`. The persister inserts them into
+        `id_pool` with status UNASSIGNED (`ON CONFLICT (id) DO NOTHING`).
+        Failures during async generation are only logged.
+      operationId: idPoolGenerate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IDPoolGenerationRequest'
+            example:
+              RequestInfo:
+                apiId: beneficiary-idgen
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              BatchRequestList:
+                - tenantId: mz
+                  totalCount: 100000
+      responses:
+        '200':
+          description: |
+            Chunks queued. Business errors are also returned with HTTP 200 as `ErrorRes`
+            (see the API description).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IDPoolGenerationResponse'
+                  - $ref: '#/components/schemas/ErrorRes'
+              example:
+                ResponseInfo:
+                  apiId: beneficiary-idgen
+                  status: successful
+                IdPoolCreateResponses:
+                  - tenantId: mz
+                    message: ID Generation is chunked and queued
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /id/id_pool/_dispatch:
+    post:
+      tags: [IdPool]
+      summary: Dispatch IDs to a user and device
+      description: |
+        `userInfo.uuid` is required (VALIDATION EXCEPTION "Missing User Uuid").
+
+        **New dispatch** (`fetchAllocatedIds` false/absent): checks the Redis counters
+        `tenant:<t>:user:<u>:device:<d>:total:count` (limit `limit.id.user.device.total`,
+        default 10000) and, when `limit.id.user.device.per.day.enabled`, the daily key
+        `...:count:<date>` (limit `limit.id.user.device.per.day`, default 100); fails with
+        USER_DEVICE_LIMIT_EXCEEDED. Then atomically marks min(remaining, count) oldest
+        UNASSIGNED ids as DISPATCHED (`UPDATE ... FOR UPDATE SKIP LOCKED RETURNING`),
+        publishes transaction logs to `save-dispatch-id-log`, and increments the counters
+        (30 day expiry). Fails with NO IDS AVAILABLE if no rows are returned (including
+        count = 0).
+
+        **Re-sync** (`fetchAllocatedIds` true): returns ids previously dispatched to this
+        user + device from `id_transaction_log` (only today's, Asia/Kolkata, when
+        `id.dispatch.retrieval.restrict-to-today.enabled`), paginated with `limit` / `offset`,
+        and resets the Redis counters when they disagree with the DB count. Fails with
+        "NO IDS Dispatched" when nothing is found.
+      operationId: idPoolDispatch
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Page size for the re-sync (fetchAllocatedIds) mode only.
+          schema: { type: integer, default: 10 }
+        - name: offset
+          in: query
+          required: false
+          description: Offset for the re-sync (fetchAllocatedIds) mode only.
+          schema: { type: integer, default: 0 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdDispatchRequest'
+            example:
+              RequestInfo:
+                apiId: beneficiary-idgen
+                msgId: "1695889012604|en_MZ"
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                  tenantId: mz
+              IdDispatchRequest:
+                tenantId: mz
+                count: 20
+                deviceUuid: 8a1f2c3d-device
+                deviceInfo: "Android 13; Samsung A12"
+                fetchAllocatedIds: false
+      responses:
+        '200':
+          description: |
+            IDs dispatched (or previously dispatched IDs returned). Business errors
+            (USER_DEVICE_LIMIT_EXCEEDED, NO IDS AVAILABLE, NO IDS Dispatched,
+            VALIDATION EXCEPTION) are also returned with HTTP 200 as `ErrorRes`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IdDispatchResponse'
+                  - $ref: '#/components/schemas/ErrorRes'
+              example:
+                ResponseInfo:
+                  apiId: beneficiary-idgen
+                  status: successful
+                UniqueBeneficiaryIds:
+                  - id: "MZ-000000000123"
+                    tenantId: mz
+                    status: DISPATCHED
+                    rowVersion: 3
+                    hasErrors: false
+                    auditDetails:
+                      createdBy: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                      createdTime: 1717000000000
+                      lastModifiedBy: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                      lastModifiedTime: 1717000500000
+                    lastModifiedBy: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+                TotalCount: 1
+                FetchLimit: 79
+                TotalLimit: 100
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /id/id_pool/_search:
+    post:
+      tags: [IdPool]
+      summary: Search ID pool records
+      description: |
+        `SELECT * FROM id_pool WHERE tenantId = ? [AND status = ?] AND id IN (:ids)
+        ORDER BY createdTime ASC`. No pagination. `ids` is effectively mandatory:
+        when it is omitted the IN clause gets a null list and the query fails.
+      operationId: idPoolSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdPoolSearchRequest'
+            example:
+              RequestInfo:
+                apiId: beneficiary-idgen
+                authToken: "<auth-token>"
+              IdPoolSearch:
+                tenantId: mz
+                ids: ["MZ-000000000123"]
+                status: DISPATCHED
+      responses:
+        '200':
+          description: Matching records (`FetchLimit` / `TotalLimit` are null). Errors are also returned with HTTP 200 as `ErrorRes`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/IdDispatchResponse'
+                  - $ref: '#/components/schemas/ErrorRes'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /id/id_pool/_update:
+    post:
+      tags: [IdPool]
+      summary: Update status of ID pool records (async)
+      description: |
+        Sets `RequestInfo.apiId` to the request URI and publishes the request to
+        `id-gen-consumer-bulk-update-topic`, then returns 202. The consumer validates
+        each record (`IdPoolValidatorForUpdate`, when `id.validation.enabled`): status
+        must be an `IdStatus` value (case-insensitive) and the id must exist in
+        `id_pool` for the tenant of the first record (error INVALID_ID). Valid records
+        get rowVersion + 1 and audit details, are published to `update-id-pool-status`
+        and logged to `save-dispatch-id-log` (deviceUuid "SYSTEM_UPDATED"). Invalid
+        records are sent to the tracer error queue; the client is not notified.
+      operationId: idPoolUpdate
+      parameters:
+        - name: echoResource
+          in: query
+          required: false
+          description: Accepted but not used.
+          schema: { type: boolean, default: true }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdRecordBulkRequest'
+            example:
+              RequestInfo:
+                apiId: beneficiary-idgen
+                authToken: "<auth-token>"
+                userInfo:
+                  uuid: 11e0c25b-b0f7-4a36-be14-4e5d5b8d8d43
+              IdRecords:
+                - id: "MZ-000000000123"
+                  tenantId: mz
+                  status: ASSIGNED
+                  rowVersion: 2
+      responses:
+        '202':
+          description: Accepted for asynchronous processing. Body is a bare ResponseInfo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseInfo'
+              example:
+                apiId: /beneficiary-idgen/id/id_pool/_update
+                status: successful
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  responses:
+    ValidationError:
+      description: Request body bean validation failed (MethodArgumentNotValidException)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorRes'
+          example:
+            ResponseInfo:
+              status: FAILED
+            Errors:
+              - code: 400 BAD_REQUEST
+                message: Invalid input
+                description: null
+                params:
+                  clientInfo.deviceUuid: must not be null
+
+  schemas:
+    RequestInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        action: { type: string }
+        did: { type: string }
+        key: { type: string }
+        msgId: { type: string }
+        authToken: { type: string }
+        correlationId: { type: string }
+        userInfo:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      description: uuid is required for _dispatch and used as createdBy / lastModifiedBy.
+      properties:
+        id: { type: integer, format: int64 }
+        uuid: { type: string }
+        userName: { type: string }
+        name: { type: string }
+        type: { type: string }
+        tenantId: { type: string }
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+              tenantId: { type: string }
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId: { type: string }
+        ver: { type: string }
+        ts: { type: integer, format: int64 }
+        resMsgId: { type: string }
+        msgId: { type: string }
+        status:
+          type: string
+          description: '"successful" on success, "FAILED" in ErrorRes'
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy: { type: string }
+        lastModifiedBy: { type: string }
+        createdTime: { type: integer, format: int64 }
+        lastModifiedTime: { type: integer, format: int64 }
+
+    AdditionalFields:
+      type: object
+      properties:
+        schema: { type: string, minLength: 2, maxLength: 64 }
+        version: { type: integer, minimum: 1 }
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              value: { type: string }
+
+    IdStatus:
+      type: string
+      enum: [UNASSIGNED, ASSIGNED, DISPATCHED]
+
+    IdRecord:
+      type: object
+      required: [tenantId]
+      properties:
+        id: { type: string, minLength: 2, maxLength: 64, description: The generated beneficiary ID }
+        tenantId: { type: string, minLength: 2, maxLength: 1000 }
+        status:
+          type: string
+          maxLength: 200
+          description: |
+            Free string (validated against IdStatus case-insensitively on _update only,
+            persisted as sent).
+        source: { type: string }
+        rowVersion: { type: integer }
+        applicationId: { type: string }
+        hasErrors: { type: boolean, default: false }
+        additionalFields:
+          $ref: '#/components/schemas/AdditionalFields'
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+        lastModifiedBy:
+          type: string
+          readOnly: true
+          description: Serialized from IdRecord.getLastModifiedBy() (copy of auditDetails.lastModifiedBy).
+
+    BatchRequest:
+      type: object
+      required: [totalCount, tenantId]
+      properties:
+        totalCount: { type: integer, minimum: 1 }
+        tenantId: { type: string }
+
+    IDPoolGenerationRequest:
+      type: object
+      required: [RequestInfo, BatchRequestList]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        BatchRequestList:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/BatchRequest'
+
+    IDPoolCreationResult:
+      type: object
+      properties:
+        tenantId: { type: string }
+        message: { type: string, example: ID Generation is chunked and queued }
+
+    IDPoolGenerationResponse:
+      type: object
+      required: [ResponseInfo, IdPoolCreateResponses]
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        IdPoolCreateResponses:
+          type: array
+          items:
+            $ref: '#/components/schemas/IDPoolCreationResult'
+
+    ClientInfo:
+      type: object
+      required: [tenantId, count, deviceUuid, deviceInfo]
+      properties:
+        tenantId: { type: string }
+        count:
+          type: integer
+          minimum: 0
+          description: Requested number of IDs (capped by remaining limit). 0 results in NO IDS AVAILABLE.
+        deviceUuid: { type: string }
+        deviceInfo: { type: string }
+        fetchAllocatedIds:
+          type: boolean
+          description: true returns previously dispatched IDs instead of dispatching new ones.
+
+    IdDispatchRequest:
+      type: object
+      required: [RequestInfo, IdDispatchRequest]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        IdDispatchRequest:
+          $ref: '#/components/schemas/ClientInfo'
+
+    IdDispatchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        UniqueBeneficiaryIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/IdRecord'
+        TotalCount:
+          type: integer
+          format: int64
+          description: Re-sync mode - total dispatched in the window; otherwise number of returned records.
+        FetchLimit:
+          type: integer
+          format: int64
+          description: New dispatch - remaining IDs the device may still fetch; re-sync - records left to page through.
+        TotalLimit:
+          type: integer
+          format: int64
+          description: Per-day limit when per-day limiting is enabled, otherwise the total limit.
+
+    IdPoolSearch:
+      type: object
+      required: [tenantId]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: Effectively required (query fails without it).
+        status:
+          $ref: '#/components/schemas/IdStatus'
+        tenantId: { type: string }
+
+    IdPoolSearchRequest:
+      type: object
+      required: [RequestInfo, IdPoolSearch]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        IdPoolSearch:
+          $ref: '#/components/schemas/IdPoolSearch'
+
+    IdRecordBulkRequest:
+      type: object
+      required: [RequestInfo, IdRecords]
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        IdRecords:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/IdRecord'
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: 400 BAD_REQUEST }
+        message: { type: string }
+        description: { type: string, nullable: true }
+        params:
+          type: object
+          additionalProperties: { type: string }
+
+    ErrorRes:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
