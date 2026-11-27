@@ -212,6 +212,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("user_name", "users.user_name"),
     ("name_of_user", "users.name_of_user"),
     ("role", "taker_users.role"),   # the taker's role, never the attendee's (per Java)
+    ("joined_role", "taker_users.joined_role"),
     ("attendance_time", "attendance_time"),
     ("register_service_code", "joined.register_service_code"),
     ("register_name", "joined.register_name"),

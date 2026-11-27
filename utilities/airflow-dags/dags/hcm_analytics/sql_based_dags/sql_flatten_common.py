@@ -97,7 +97,7 @@ class SliceTooLarge(AirflowFailException):
 
 LEVEL_COLUMNS = [f"level_{ordinal}_code" for ordinal in BOUNDARY_LEVEL_ORDINALS]
 BOUNDARY_LEVELS_COLUMNS = ["tenant_id", "hierarchy_type", "boundary_code", *LEVEL_COLUMNS]
-USER_INFO_COLUMNS = ["tenant_id", "user_id", "user_name", "name_of_user", "role", "user_address"]
+USER_INFO_COLUMNS = ["tenant_id", "user_id", "user_name", "name_of_user", "role", "joined_role", "user_address"]
 
 # Per-slice INSERT ... SELECT. All join sides are slice-filtered, so these are
 # guards, not tuning: fail loudly rather than lean on the pod's memory limit.
@@ -755,7 +755,7 @@ def _resolve_user_rows(key_rows: list[tuple]) -> list[list[str]]:
     # user already carries USERNAME = its uuid (egov_api_utils._not_found_user_info).
     return [
         [tenant_id, user_id, str(info.get("USERNAME") or ""), str(info.get("NAME") or ""),
-         str(info.get("ROLE") or ""), str(info.get("CITY") or "")]
+         str(info.get("ROLE") or ""), str(info.get("JOINED_ROLE") or ""), str(info.get("CITY") or "")]
         for (tenant_id, user_id), info in resolved.items()
     ]
 
@@ -825,8 +825,10 @@ def lookup_map_sql(lookup: Lookup, values_sql: str, tenant_literal: str) -> str:
 def _resolve_user_info_json_rows(key_rows: list[tuple]) -> list[list[str]]:
     import json
     resolved = resolve_user_info({(tenant_id, user_id) for tenant_id, user_id in key_rows})
-    # the whole info dict as json.dumps text (USERNAME, NAME, ROLE, ID, CITY; nulls kept)
-    return [[tenant_id, user_id, json.dumps(info)] for (tenant_id, user_id), info in resolved.items()]
+    # the whole info dict as json.dumps text (USERNAME, NAME, ROLE, ID, CITY; nulls kept) -- JOINED_ROLE left
+    # out so attendees_info stays exactly as before (it is only for the joined_role columns)
+    return [[tenant_id, user_id, json.dumps({k: v for k, v in info.items() if k != "JOINED_ROLE"})]
+            for (tenant_id, user_id), info in resolved.items()]
 
 
 def user_info_json_lookup(keys_sql: Callable[[SliceFilter], str], alias: str) -> Lookup:

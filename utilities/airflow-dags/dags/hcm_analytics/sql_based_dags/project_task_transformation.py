@@ -385,6 +385,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("user_name", "users.user_name"),
     ("name_of_user", "users.name_of_user"),
     ("role", "users.role"),
+    ("joined_role", "users.joined_role"),
     ("user_address", "users.user_address"),
     ("latitude", "joined.address_latitude"),
     ("longitude", "joined.address_longitude"),

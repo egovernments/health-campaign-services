@@ -253,6 +253,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("user_name", "users.user_name"),
     ("name_of_user", "users.name_of_user"),
     ("role", "users.role"),
+    ("joined_role", "users.joined_role"),
     *[(column, f"levels.{column}") for column in LEVEL_COLUMNS],
     ("hierarchy_type", "if(joined.locality_code != '', joined.hierarchy_type, '')"),
     ("project_id", "joined.project_id"),

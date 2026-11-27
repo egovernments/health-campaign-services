@@ -722,20 +722,38 @@ def _get_staff_role(tenant_id: str, users: list[dict]) -> str | None:
     return min(ranked)[1] if ranked else None
 
 
+def _get_joined_roles(user: dict) -> str | None:
+    """
+    Mirrors UserService.java's getJoinedRoles() (transformer commit fc1b771c5c,
+    "gabon roles joined"): every role code of the user, in the order the user
+    service returns them, joined with '_' -- e.g. DISTRIBUTOR + REGISTRAR ->
+    'DISTRIBUTOR_REGISTRAR'. None when the user has no roles list, as Java.
+    Kept alongside _get_staff_role: some campaigns read the ranked role,
+    others the joined one.
+    """
+    roles = user.get("roles")
+    if roles is None:
+        return None
+    return "_".join(r["code"] for r in roles if r.get("code") is not None)
+
+
 def _not_found_user_info(user_id: str) -> dict:
     """Shared not-found shape for get_user_info and resolve_user_info --
     NOT cached by either caller, matching Java: a user could plausibly land
     in the service between now and the next lookup."""
-    return {"USERNAME": user_id, "NAME": None, "ROLE": None, "ID": None, "CITY": None}
+    return {"USERNAME": user_id, "NAME": None, "ROLE": None, "JOINED_ROLE": None, "ID": None, "CITY": None}
 
 
 def _build_user_info(tenant_id: str, user: dict) -> dict:
-    """Shared {USERNAME, NAME, ROLE, ID, CITY} shape for get_user_info and
-    resolve_user_info, built from one already-fetched user object."""
+    """Shared {USERNAME, NAME, ROLE, JOINED_ROLE, ID, CITY} shape for
+    get_user_info and resolve_user_info, built from one already-fetched user
+    object. ROLE = lowest-rank role (getStaffRole); JOINED_ROLE = all roles
+    joined (getJoinedRoles)."""
     return {
         "USERNAME": user.get("userName"),
         "NAME": user.get("name"),
         "ROLE": _get_staff_role(tenant_id, [user]),
+        "JOINED_ROLE": _get_joined_roles(user),
         "ID": user.get("id"),
         "CITY": user.get("correspondenceAddress"),
     }

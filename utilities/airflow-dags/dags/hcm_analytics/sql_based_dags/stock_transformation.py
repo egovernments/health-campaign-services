@@ -303,6 +303,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("user_name", "users.user_name"),
     ("name_of_user", "users.name_of_user"),
     ("role", "users.role"),
+    ("joined_role", "users.joined_role"),
     ("user_address", "users.user_address"),
     ("date_of_entry", "if(joined.date_of_entry != 0, joined.date_of_entry, joined.last_modified_time)"),
     *[(column, f"levels.{column}") for column in LEVEL_COLUMNS],
