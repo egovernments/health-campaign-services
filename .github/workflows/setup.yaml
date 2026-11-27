@@ -35,6 +35,7 @@ on:
         default: master
         options:
           - master
+          - develop
           - "0.2"
           - "0.4"
           - "4879"
@@ -233,7 +234,6 @@ on:
           - HLM-4894
           - HLM-4894-consumer
           - HLM-5004-enhance-inventory-flow
-          - HLM-5009-be-make-staff-fields-as-array-in-project-staff-search
       auth_mode:
         description: "Code Build /actions sign-in method (full mode; defaults to your last pick)"
         type: choice

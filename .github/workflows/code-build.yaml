@@ -16,6 +16,7 @@ on:
         default: master
         options:
           - master
+          - develop
           - "0.2"
           - "0.4"
           - "4879"
@@ -214,7 +215,6 @@ on:
           - HLM-4894
           - HLM-4894-consumer
           - HLM-5004-enhance-inventory-flow
-          - HLM-5009-be-make-staff-fields-as-array-in-project-staff-search
       all_services:
         description: "Build ALL services from build-config.yml (ignores the Service pick)"
         required: false
