@@ -134,6 +134,15 @@ public class PGRQueryBuilder {
             addToPreparedStatement(preparedStmtList, userIds);
         }
 
+        //Only complaint handlers can see every complaint, everyone else sees only the complaints they raised or created.
+        String restrictedToUserId = criteria.getRestrictedToUserId();
+        if (StringUtils.hasText(restrictedToUserId)) {
+            addClauseIfRequired(preparedStmtList, builder);
+            builder.append(" (ser.accountId = ? OR ser.createdby = ?) ");
+            preparedStmtList.add(restrictedToUserId);
+            preparedStmtList.add(restrictedToUserId);
+        }
+
 
         Set<String> localities = criteria.getLocality();
         if(!CollectionUtils.isEmpty(localities)){

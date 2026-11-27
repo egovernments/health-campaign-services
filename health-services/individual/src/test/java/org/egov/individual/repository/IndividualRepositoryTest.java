@@ -316,4 +316,34 @@ class IndividualRepositoryTest {
         assertTrue(result.isEmpty());
         verify(namedParameterJdbcTemplate, never()).query(anyString(), anyMap(), any(ResultSetExtractor.class));
     }
+    @Test
+    @DisplayName("socialCategory and roleCodes are bound as parameters, never written into the SQL text")
+    void shouldBindSocialCategoryAndRoleCodesAsParameters() throws QueryBuilderException, InvalidTenantIdException {
+        String injectedCategory = "x\"}]' OR 1=1 --";
+        String injectedRole = "y\"}]') OR 1=1 --";
+        IndividualSearch individualSearch = IndividualSearch.builder()
+                .socialCategory(injectedCategory)
+                .roleCodes(Arrays.asList("DISTRIBUTOR", injectedRole))
+                .build();
+
+        when(multiStateInstanceUtil.replaceSchemaPlaceholder(anyString(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(namedParameterJdbcTemplate.query(nullable(String.class), anyMap(), any(IndividualRowMapper.class)))
+                .thenReturn(Collections.emptyList());
+
+        individualRepository.find(individualSearch, 10, 0, "default", null, false);
+
+        org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.ArgumentCaptor<Map<String, Object>> paramsCaptor = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(namedParameterJdbcTemplate).query(sqlCaptor.capture(), paramsCaptor.capture(), any(IndividualRowMapper.class));
+
+        String sql = sqlCaptor.getValue();
+        Map<String, Object> params = paramsCaptor.getValue();
+        assertTrue(!sql.contains("OR 1=1"), "request text must not reach the SQL");
+        assertTrue(sql.contains("additionaldetails->'fields' @> jsonb_build_array(jsonb_build_object('key', 'SOCIAL_CATEGORY', 'value', CAST(:socialCategoryValue AS text)))"));
+        assertTrue(sql.contains("roles @> jsonb_build_array(jsonb_build_object('code', CAST(:roleCodeValue0 AS text))) OR roles @> jsonb_build_array(jsonb_build_object('code', CAST(:roleCodeValue1 AS text)))"));
+        assertEquals(injectedCategory, params.get("socialCategoryValue"));
+        assertEquals("DISTRIBUTOR", params.get("roleCodeValue0"));
+        assertEquals(injectedRole, params.get("roleCodeValue1"));
+    }
 }

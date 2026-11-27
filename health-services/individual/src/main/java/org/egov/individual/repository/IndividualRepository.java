@@ -272,7 +272,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("dateOfBirth", searchObject.getDateOfBirth());
         }
         if (searchObject.getSocialCategory() != null) {
-            query = query + "AND additionaldetails->'fields' @> '[{\"key\": \"SOCIAL_CATEGORY\", \"value\":" + "\"" + searchObject.getSocialCategory() + "\"}]' ";
+            // Value is bound as a parameter; the JSON is built by Postgres so request input never becomes SQL text.
+            query = query + "AND additionaldetails->'fields' @> jsonb_build_array(jsonb_build_object('key', 'SOCIAL_CATEGORY', 'value', CAST(:socialCategoryValue AS text))) ";
+            paramsMap.put("socialCategoryValue", searchObject.getSocialCategory());
         }
         if (searchObject.getCreatedFrom() != null) {
 
@@ -300,7 +302,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
             query = query + "AND (";
             for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "roles @> '[{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}]'";
+                // Each role code is bound as its own parameter; the JSON is built by Postgres.
+                String roleCodeParam = "roleCodeValue" + i;
+                query = query + "roles @> jsonb_build_array(jsonb_build_object('code', CAST(:" + roleCodeParam + " AS text)))";
+                paramsMap.put(roleCodeParam, searchObject.getRoleCodes().get(i));
                 if (i != searchObject.getRoleCodes().size() - 1) {
                     query = query + " OR ";  // Add OR between conditions
                 }

@@ -6,6 +6,7 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.repository.PGRRepository;
 import org.egov.pgr.util.HRMSUtil;
+import org.egov.pgr.util.TenantAccessUtil;
 import org.egov.pgr.web.models.RequestSearchCriteria;
 import org.egov.pgr.web.models.Service;
 import org.egov.pgr.web.models.ServiceRequest;
@@ -238,6 +239,9 @@ public class ServiceRequestValidator {
      */
     public void validateSearch(RequestInfo requestInfo, RequestSearchCriteria criteria){
 
+        validateTenantPresent(criteria);
+        TenantAccessUtil.validateTenantAccess(requestInfo, criteria.getTenantId());
+
         /*
         * Checks if tenatId is provided with the search params
         * */
@@ -322,7 +326,19 @@ public class ServiceRequestValidator {
     }
 
 
-    public void validatePlainSearch(RequestSearchCriteria criteria) {
+    /**
+     * Every complaint search and count is scoped to one tenant. Without a tenant the query has no tenant filter,
+     * so it could return complaints of other tenants.
+     * @param criteria
+     */
+    public void validateTenantPresent(RequestSearchCriteria criteria){
+        if(!StringUtils.hasText(criteria.getTenantId()))
+            throw new CustomException("INVALID_SEARCH","TenantId is mandatory search param");
+    }
+
+
+    public void validatePlainSearch(RequestInfo requestInfo, RequestSearchCriteria criteria) {
+        TenantAccessUtil.validateTenantAccess(requestInfo, criteria.getTenantId(), criteria.getTenantIds());
         if(CollectionUtils.isEmpty(criteria.getTenantIds())){
             throw new CustomException("TENANT_ID_LIST_EMPTY", "Tenant ids not provided for searching.");
         }

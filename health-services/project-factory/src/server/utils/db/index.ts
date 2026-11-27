@@ -30,6 +30,9 @@ export const executeQuery = async (
   }
 };
 
+/** Same rule as DIGIT MultiStateInstanceUtil.SCHEMA_NAME_PATTERN, so tenantId can never inject SQL through the schema name. */
+const SCHEMA_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
+
 /** Qualify a table with the tenant's schema so queries route to the correct central-instance/shared schema. */
 export const getTableName = (tableName: string, tenantId: string): string => {
   if (config.isEnvironmentCentralInstance) {
@@ -37,6 +40,9 @@ export const getTableName = (tableName: string, tenantId: string): string => {
     const firstTenantPartAfterSplit = tenantId.includes(".")
       ? tenantId.split(".")[0]
       : tenantId;
+    if (!SCHEMA_NAME_PATTERN.test(firstTenantPartAfterSplit)) {
+      throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid tenantId");
+    }
     return `${firstTenantPartAfterSplit}.${tableName}`;
   } else {
     return `${getDBSchemaName(config.DB_CONFIG.DB_SCHEMA)}.${tableName}`;

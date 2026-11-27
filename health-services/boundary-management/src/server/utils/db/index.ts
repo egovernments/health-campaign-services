@@ -4,12 +4,18 @@ import { throwError } from "../genericUtils";
 import pool from "../../config/dbPoolConfig";
 
 
+/** Same rule as DIGIT MultiStateInstanceUtil.SCHEMA_NAME_PATTERN, so tenantId can never inject SQL through the schema name. */
+const SCHEMA_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
+
 export const getTableName = (tableName: string, tenantId: string): string => {
   if (config.isEnvironmentCentralInstance) {
     // If tenantId has no ".", default to tenantId itself
     const firstTenantPartAfterSplit = tenantId.includes(".")
       ? tenantId.split(".")[0]
       : tenantId;
+    if (!SCHEMA_NAME_PATTERN.test(firstTenantPartAfterSplit)) {
+      throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid tenantId");
+    }
     return `${firstTenantPartAfterSplit}.${tableName}`;
   } else {
     return `${getDBSchemaName(config.DB_CONFIG.DB_SCHEMA)}.${tableName}`;

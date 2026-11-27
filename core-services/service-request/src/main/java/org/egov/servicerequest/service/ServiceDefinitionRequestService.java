@@ -4,8 +4,10 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.kafka.Producer;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
+import org.egov.servicerequest.util.TenantAccessUtil;
 import org.egov.servicerequest.validators.ServiceDefinitionRequestValidator;
 import org.egov.servicerequest.web.models.ServiceDefinition;
+import org.egov.servicerequest.web.models.ServiceDefinitionCriteria;
 import org.egov.servicerequest.web.models.ServiceDefinitionRequest;
 import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +39,9 @@ public class ServiceDefinitionRequestService {
 
         ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
 
+        // Validate that the user has access to the tenant of the request
+        TenantAccessUtil.validateTenantAccess(serviceDefinitionRequest.getRequestInfo(), serviceDefinition.getTenantId());
+
         // Validate incoming service definition request
         serviceDefinitionRequestValidator.validateServiceDefinitionRequest(serviceDefinitionRequest);
 
@@ -54,6 +59,10 @@ public class ServiceDefinitionRequestService {
 
     public List<ServiceDefinition> searchServiceDefinition(ServiceDefinitionSearchRequest serviceDefinitionSearchRequest) throws InvalidTenantIdException {
 
+        // Validate that the user has access to the tenant of the request
+        ServiceDefinitionCriteria criteria = serviceDefinitionSearchRequest.getServiceDefinitionCriteria();
+        TenantAccessUtil.validateTenantAccess(serviceDefinitionSearchRequest.getRequestInfo(), criteria == null ? null : criteria.getTenantId());
+
         List<ServiceDefinition> listOfServiceDefinitions = serviceDefinitionRequestRepository.getServiceDefinitions(serviceDefinitionSearchRequest);
 
         if(CollectionUtils.isEmpty(listOfServiceDefinitions))
@@ -70,6 +79,9 @@ public class ServiceDefinitionRequestService {
     public ServiceDefinition updateServiceDefinition(ServiceDefinitionRequest serviceDefinitionRequest) throws InvalidTenantIdException {
 
         ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
+
+        // Validate that the user has access to the tenant of the request
+        TenantAccessUtil.validateTenantAccess(serviceDefinitionRequest.getRequestInfo(), serviceDefinition.getTenantId());
 
         //Validate incoming service definition request
         ServiceDefinition definitionFromDb = serviceDefinitionRequestValidator.validateUpdateRequest(serviceDefinitionRequest);

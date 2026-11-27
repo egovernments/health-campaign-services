@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
@@ -64,7 +66,12 @@ public class FNonExistentValidator implements Validator<FacilityBulkRequest, Fac
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
                 List<Facility> existingEntities = null;
                 try {
-                    existingEntities = facilityRepository.findById(tenantId, entityIds, getIdFieldName(idMethod), false).getResponse();
+                    List<Facility> foundEntities = facilityRepository.findById(tenantId, entityIds, getIdFieldName(idMethod), false).getResponse();
+                    existingEntities = (foundEntities == null ? Collections.<Facility>emptyList() : foundEntities)
+                            .stream()
+                            .filter(existing -> eMap.containsKey(existing.getId())
+                                    && Objects.equals(existing.getTenantId(), eMap.get(existing.getId()).getTenantId()))
+                            .collect(Collectors.toList());
                     List<Facility> nonExistentEntities = checkNonExistentEntities(eMap,
                             existingEntities, idMethod);
                     nonExistentEntities.forEach(facility -> {

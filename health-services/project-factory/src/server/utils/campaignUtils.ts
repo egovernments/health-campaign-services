@@ -108,6 +108,7 @@ import { generateDataService } from "../service/sheetManageService";
 import { CampaignResource, toCampaignResource } from "../config/models/resourceTypes";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { triggerUserCredentialEmailFlow } from "./mailUtils";
+import { buildCampaignOrderByClause } from "./campaignSearchQueryUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -1580,13 +1581,7 @@ function buildSearchQuery(
 
   if (pagination) {
     query += "\n";
-    if (pagination.sortBy) {
-      query += `ORDER BY ${pagination.sortBy}`;
-      if (pagination.sortOrder) {
-        query += ` ${pagination.sortOrder.toUpperCase()}`;
-      }
-      query += "\n";
-    }
+    query += buildCampaignOrderByClause(pagination.sortBy, pagination.sortOrder);
     if (pagination.limit !== undefined) {
       query += `LIMIT ${pagination.limit}`;
       if (pagination.offset !== undefined) {

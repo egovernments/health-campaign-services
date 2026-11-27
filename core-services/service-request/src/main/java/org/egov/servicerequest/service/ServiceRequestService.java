@@ -4,6 +4,7 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.kafka.Producer;
 import org.egov.servicerequest.repository.ServiceRequestRepository;
+import org.egov.servicerequest.util.TenantAccessUtil;
 import org.egov.servicerequest.validators.ServiceRequestValidator;
 import org.egov.servicerequest.web.models.ServiceRequest;
 import org.egov.servicerequest.web.models.ServiceSearchRequest;
@@ -37,6 +38,9 @@ public class ServiceRequestService {
 
         org.egov.servicerequest.web.models.Service service = serviceRequest.getService();
 
+        // Validate that the user has access to the tenant of the request
+        TenantAccessUtil.validateTenantAccess(serviceRequest.getRequestInfo(), service.getTenantId());
+
         // Validate incoming service definition request
         serviceRequestValidator.validateServiceRequest(serviceRequest);
 
@@ -54,6 +58,9 @@ public class ServiceRequestService {
 
     public List<org.egov.servicerequest.web.models.Service> searchService(ServiceSearchRequest serviceSearchRequest) throws InvalidTenantIdException {
 
+        // Validate that the user has access to the tenant of the request
+        TenantAccessUtil.validateTenantAccess(serviceSearchRequest.getRequestInfo(), serviceSearchRequest.getServiceCriteria().getTenantId());
+
         List<org.egov.servicerequest.web.models.Service> listOfServices = serviceRequestRepository.getService(serviceSearchRequest);
 
         if(CollectionUtils.isEmpty(listOfServices))
@@ -67,6 +74,9 @@ public class ServiceRequestService {
         org.egov.servicerequest.web.models.Service service = serviceRequest.getService();
 
         String tenantId = service.getTenantId();
+
+        // Validate that the user has access to the tenant of the request
+        TenantAccessUtil.validateTenantAccess(serviceRequest.getRequestInfo(), tenantId);
 
         // Validate incoming service definition request
         org.egov.servicerequest.web.models.Service existingService = serviceRequestValidator.validateServiceUpdateRequest(serviceRequest);

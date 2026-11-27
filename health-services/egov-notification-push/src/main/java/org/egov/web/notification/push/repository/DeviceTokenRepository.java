@@ -1,12 +1,16 @@
 package org.egov.web.notification.push.repository;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.exception.InvalidTenantIdFormatException;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.model.CustomException;
-import org.egov.web.notification.push.config.PushProperties;
 import org.egov.web.notification.push.repository.querybuilder.DeviceTokenQueryBuilder;
 import org.egov.web.notification.push.repository.rowmappers.DeviceTokenRowMapper;
 import org.egov.web.notification.push.web.contract.DeviceToken;
@@ -27,17 +31,16 @@ public class DeviceTokenRepository {
 	private DeviceTokenRowMapper rowMapper;
 
 	@Autowired
-	private PushProperties properties;
+	private MultiStateInstanceUtil multiStateInstanceUtil;
 
 	public List<DeviceToken> fetchTokensByUserIds(List<String> userIds, String tenantId) {
 		if (userIds == null || userIds.isEmpty()) {
 			return Collections.emptyList();
 		}
-		String schema = getSchemaFromTenantId(tenantId);
+		String query = resolveSchema(DeviceTokenQueryBuilder.fetchTokensByUserIds(), tenantId);
 		Map<String, Object> params = Collections.singletonMap("userIds", userIds);
 		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchTokensByUserIds(schema), params, rowMapper);
+			return namedParameterJdbcTemplate.query(query, params, rowMapper);
 		} catch (Exception e) {
 			log.error("Error while fetching device tokens: ", e);
 			return Collections.emptyList();
@@ -48,11 +51,10 @@ public class DeviceTokenRepository {
 		if (userIds == null || userIds.isEmpty()) {
 			return Collections.emptyList();
 		}
-		String schema = getSchemaFromTenantId(tenantId);
+		String query = resolveSchema(DeviceTokenQueryBuilder.fetchLatestTokenByUserIds(), tenantId);
 		Map<String, Object> params = Collections.singletonMap("userIds", userIds);
 		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchLatestTokenByUserIds(schema), params, rowMapper);
+			return namedParameterJdbcTemplate.query(query, params, rowMapper);
 		} catch (Exception e) {
 			log.error("Error while fetching latest device tokens: ", e);
 			return Collections.emptyList();
@@ -63,10 +65,8 @@ public class DeviceTokenRepository {
 		if (facilityId == null || facilityId.isEmpty()) {
 			return Collections.emptyList();
 		}
-		String schema = getSchemaFromTenantId(tenantId);
-		String query = DeviceTokenQueryBuilder.fetchTokensByFacilityId(schema);
-		log.info("fetchTokensByFacilityId: facilityId={}, tenantId={}, schema={}, query={}",
-				facilityId, tenantId, schema, query);
+		String query = resolveSchema(DeviceTokenQueryBuilder.fetchTokensByFacilityId(), tenantId);
+		log.info("fetchTokensByFacilityId: facilityId={}, tenantId={}, query={}", facilityId, tenantId, query);
 		Map<String, Object> params = Collections.singletonMap("facilityId", facilityId);
 		try {
 			return namedParameterJdbcTemplate.query(query, params, rowMapper);
@@ -80,13 +80,12 @@ public class DeviceTokenRepository {
 		if (facilityId == null || facilityId.isEmpty() || role == null || role.isEmpty()) {
 			return Collections.emptyList();
 		}
-		String schema = getSchemaFromTenantId(tenantId);
+		String query = resolveSchema(DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRole(), tenantId);
 		Map<String, Object> params = new HashMap<>();
 		params.put("facilityId", facilityId);
 		params.put("rolePattern", "%" + role + "%");
 		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRole(schema), params, rowMapper);
+			return namedParameterJdbcTemplate.query(query, params, rowMapper);
 		} catch (Exception e) {
 			log.error("Error while fetching device tokens by facilityId and role: ", e);
 			return Collections.emptyList();
@@ -97,15 +96,14 @@ public class DeviceTokenRepository {
 		if (facilityId == null || facilityId.isEmpty() || roles == null || roles.isEmpty()) {
 			return Collections.emptyList();
 		}
-		String schema = getSchemaFromTenantId(tenantId);
+		String query = resolveSchema(DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRoles(roles.size()), tenantId);
 		Map<String, Object> params = new HashMap<>();
 		params.put("facilityId", facilityId);
 		for (int i = 0; i < roles.size(); i++) {
 			params.put("rolePattern" + i, "%" + roles.get(i) + "%");
 		}
 		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRoles(schema, roles.size()), params, rowMapper);
+			return namedParameterJdbcTemplate.query(query, params, rowMapper);
 		} catch (Exception e) {
 			log.error("Error while fetching device tokens by facilityId and roles: ", e);
 			return Collections.emptyList();
@@ -116,11 +114,10 @@ public class DeviceTokenRepository {
 		if (deviceTokens == null || deviceTokens.isEmpty()) {
 			return 0;
 		}
-		String schema = getSchemaFromTenantId(tenantId);
+		String query = resolveSchema(DeviceTokenQueryBuilder.deleteByDeviceTokens(), tenantId);
 		Map<String, Object> params = Collections.singletonMap("deviceTokens", deviceTokens);
 		try {
-			return namedParameterJdbcTemplate.update(
-					DeviceTokenQueryBuilder.deleteByDeviceTokens(schema), params);
+			return namedParameterJdbcTemplate.update(query, params);
 		} catch (Exception e) {
 			log.error("Error while deleting stale device tokens: ", e);
 			return 0;
@@ -128,32 +125,22 @@ public class DeviceTokenRepository {
 	}
 
 	/**
-	 * Derives the DB schema name from the tenantId.
-	 * Central instance: tenantId "in.statea.tenant" with position=1 → schema "statea"
-	 * Non-central: tenantId is the schema (e.g., "ba" → schema "ba")
+	 * Non-central: the tenantId is not used in the query, so the default schema is used for any tenantId.
+	 * Central: fills the {schema} placeholder through DIGIT's MultiStateInstanceUtil, which validates the
+	 * tenantId before it is used as a schema name; the service's existing error codes are kept.
 	 */
-	private String getSchemaFromTenantId(String tenantId) {
-		log.info("getSchemaFromTenantId: tenantId={}, isCentralInstance={}",
-				tenantId, properties.getIsCentralInstance());
-		if (Boolean.TRUE.equals(properties.getIsCentralInstance())) {
-			if (tenantId == null || tenantId.isEmpty()) {
-				throw new CustomException("MISSING_TENANT_ID", "TenantId is required for schema resolution");
-			}
-			if (tenantId.contains(".")) {
-				String[] parts = tenantId.split("\\.");
-				int position = properties.getSchemaIndexPosition();
-				if (position < parts.length) {
-					log.info("Central instance: derived schema='{}' from tenantId='{}'", parts[position], tenantId);
-					return parts[position];
-				}
-				throw new CustomException("INVALID_TENANT_ID", "Cannot derive schema from tenantId: " + tenantId);
-			}
-			log.info("Central instance: tenantId='{}' has no dot, using as schema directly", tenantId);
-			return tenantId;
+	private String resolveSchema(String query, String tenantId) {
+		if (!Boolean.TRUE.equals(multiStateInstanceUtil.getIsEnvironmentCentralInstance())) {
+			return query.replace(SCHEMA_REPLACE_STRING + ".", "");
 		}
-		// Non-central: use default (public) schema
-		log.info("Non-central instance: using default (public) schema");
-		return null;
+		if (tenantId == null || tenantId.isEmpty()) {
+			throw new CustomException("MISSING_TENANT_ID", "TenantId is required for schema resolution");
+		}
+		try {
+			return multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+		} catch (InvalidTenantIdException | InvalidTenantIdFormatException e) {
+			throw new CustomException("INVALID_TENANT_ID", "Invalid tenantId");
+		}
 	}
 
 }

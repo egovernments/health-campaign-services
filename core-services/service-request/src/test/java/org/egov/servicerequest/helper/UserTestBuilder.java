@@ -25,6 +25,7 @@ public class UserTestBuilder {
         Role role = Role.builder()
                 .id(123L)
                 .name("System Administrator")
+                .tenantId("default")
                 .build();
         List<Role> roles = new ArrayList<>();
         roles.add(role);
