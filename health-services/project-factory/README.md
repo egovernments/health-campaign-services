@@ -17,6 +17,7 @@ Changes from v2.0 to v2.1, in plain language for product owners, QA and ops.
 - Rows of the Outside Household sheet become facilities (`usage` = site type, category in `additionalFields`) and, when Active, project-facility links that carry the frontline worker.
 - In an edit: a changed worker is written onto the existing link, a site set Inactive loses its link, and removing `OUTSIDEHOUSEHOLD` from the delivery methods deletes every site link of the campaign (guarded; switch `OUTSIDE_HOUSEHOLD_UNLINK_ON_DELIVERY_REMOVAL`).
 - A draft update that adds or removes `OUTSIDEHOUSEHOLD` in `cycleData.deliveryMethods` generates a new template.
+- A save of an edit draft (one that brings no new file) whose template finished more than `CAMPAIGN_REFRESH_EDIT_DRAFT_TEMPLATE_AFTER_MS` ago (default 2 minutes) or failed generates a new template, so sites added after the edit was opened are listed.
 - Full flow: [OUTSIDE_HOUSEHOLD_SITES.md](OUTSIDE_HOUSEHOLD_SITES.md).
 
 ## 1. Purpose

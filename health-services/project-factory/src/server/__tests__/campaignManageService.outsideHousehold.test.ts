@@ -26,7 +26,7 @@ jest.mock('../utils/resourceDetailsUtils', () => ({ findActiveResourceByUpsertKe
 jest.mock('../utils/genericUtils', () => ({ prepareProcessesForResourceTypes: jest.fn(), getCurrentProcesses: jest.fn() }));
 jest.mock('../kafka/Producer', () => ({ produceModifiedMessages: jest.fn() }));
 jest.mock('../config/resourceTypeRegistry', () => ({ getRegistryEntry: jest.fn() }));
-jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn(), keepCloneLineage: jest.fn(() => []), dropCloneSourceDeliveryDates: jest.fn(() => 0), dropCloneSourceDeliveryRules: jest.fn(() => false), fileBeforeOutsideHouseholdChange: jest.fn(async () => null), keepFileForOutsideHouseholdChange: jest.fn(() => null) }));
+jest.mock('../utils/generateUtils', () => ({ isGenerationTriggerNeeded: jest.fn(), isOutsideHouseholdDeliveryChanged: jest.fn(), keepCloneLineage: jest.fn(() => []), dropCloneSourceDeliveryDates: jest.fn(() => 0), dropCloneSourceDeliveryRules: jest.fn(() => false), fileBeforeOutsideHouseholdChange: jest.fn(async () => null), keepFileForOutsideHouseholdChange: jest.fn(() => null), keptFile: jest.fn(() => null), bringsNewFile: jest.fn(() => false), latestUnifiedTemplate: jest.fn(), startUnifiedTemplate: jest.fn(), generationDetailsFromUpdate: jest.fn(() => ({ details: true })) }));
 jest.mock('../utils/deliveryMethodUtils', () => ({ campaignTypeOffersOutsideHousehold: jest.fn() }));
 
 import config from '../config';
@@ -35,7 +35,7 @@ import { dropCloneSourceFileIfOutsideHouseholdChoiceDiffers, processBasedOnActio
 import { validateEditFile, validateProjectCampaignRequest } from '../validators/campaignValidators';
 import { createResourceDetail, deactivateAllResourcesForCampaign, undoSavedResources, updateResourceDetail } from '../service/resourceDetailsService';
 import { findActiveResourceByUpsertKey, searchResourceDetailsFromDB } from '../utils/resourceDetailsUtils';
-import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage } from '../utils/generateUtils';
+import { bringsNewFile, dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage, keptFile, latestUnifiedTemplate, startUnifiedTemplate } from '../utils/generateUtils';
 import { campaignTypeOffersOutsideHousehold } from '../utils/deliveryMethodUtils';
 
 const UNIFIED = 'unified-console-resources';
@@ -322,5 +322,228 @@ describe('updateProjectTypeCampaignService gives a clone its source file back', 
             .toBeLessThan((processBasedOnAction as jest.Mock).mock.invocationCallOrder[0]);
         expect(savedResources).toEqual([{ type: UNIFIED, filestoreId: 'SRC-FILE' }]);
         expect(attachedFileIds()).toEqual(['SRC-FILE']);
+    });
+});
+
+describe('updateProjectTypeCampaignService refreshes an edit draft\'s old template', () => {
+    const MINUTE = 60 * 1000;
+    const flush = () => new Promise((resolve) => setImmediate(resolve));
+    const save = (overrides: Record<string, unknown> = {}) => ({
+        body: {
+            RequestInfo: { userInfo: { uuid: 'u1' } },
+            CampaignDetails: { id: 'e1', tenantId: 'tn', hierarchyType: 'H', parentId: 'c1', action: 'draft', resources: [],
+                boundaries: [{ code: 'B1' }], additionalDetails: { isUnifiedCampaign: true }, ...overrides },
+        },
+    }) as any;
+    const record = (id: string, state: 'inProgress' | 'completed' | 'failed', startedAt: number, finishedAt = startedAt) =>
+        ({ state, id, startedAt, finishedAt }) as any;
+    const oldTemplate = () => record('G0', 'completed', Date.now() - 20 * MINUTE, Date.now() - 10 * MINUTE);
+    const templateFinished = (agoMs: number, state: 'completed' | 'failed' = 'completed') =>
+        jest.mocked(latestUnifiedTemplate).mockResolvedValue(record('G0', state, Date.now() - agoMs - 1000, Date.now() - agoMs));
+
+    beforeEach(() => {
+        (config as any).mapping.refreshEditDraftTemplateAfterMs = 2 * MINUTE;
+        (config as any).mapping.refreshEditDraftTemplateWatchIntervalMs = 0;
+        (config as any).mapping.refreshEditDraftTemplateWatchMaxMs = 10 * MINUTE;
+        (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: false });
+        (isOutsideHouseholdDeliveryChanged as jest.Mock).mockReturnValue(false);
+        (keptFile as jest.Mock).mockReturnValue(null);
+        (bringsNewFile as jest.Mock).mockReturnValue(false);
+        jest.mocked(startUnifiedTemplate).mockResolvedValue({ id: 'G1', startedAt: Date.now() } as any);
+    });
+
+    describe('when a new template is started', () => {
+        it('starts one when the draft\'s template finished longer ago than the limit', async () => {
+            templateFinished(3 * 24 * 60 * MINUTE);
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(latestUnifiedTemplate).toHaveBeenCalledWith({ userInfo: { uuid: 'u1' } }, 'tn', 'e1');
+            expect(generationDetailsFromUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), null, null);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+            expect(jest.mocked(startUnifiedTemplate).mock.calls[0][0].CampaignDetails.id).toBe('e1');
+            expect(jest.mocked(startUnifiedTemplate).mock.calls[0][1]).toEqual({ details: true });
+        });
+
+        it('sends the kept file and the earlier files, so the rows copied after an Outside Household change stay', async () => {
+            templateFinished(10 * MINUTE);
+            (keptFile as jest.Mock).mockReturnValue('KEPT');
+            (searchResourceDetailsFromDB as jest.Mock).mockResolvedValue([{ filestoreid: 'KEPT', createdtime: 3 }, { filestoreid: 'F1', createdtime: 2 }]);
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(generationDetailsFromUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), 'KEPT', ['F1']);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+
+        it('starts one when the draft has none', async () => {
+            jest.mocked(latestUnifiedTemplate).mockResolvedValue({ state: 'none' });
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+
+        it('starts one when the draft\'s newest template failed, however recently', async () => {
+            templateFinished(5 * 1000, 'failed');
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+
+        it('reads the edit link and the unified flag from the stored campaign when the save leaves them out', async () => {
+            templateFinished(10 * MINUTE);
+            (validateProjectCampaignRequest as jest.Mock).mockImplementation(async (r: any) => {
+                r.body.ExistingCampaignDetails = { ...existing, id: 'e1', parentId: 'c1', additionalDetails: { isUnifiedCampaign: true } };
+            });
+            await updateProjectTypeCampaignService(save({ parentId: undefined, additionalDetails: {} }));
+            await flush();
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('when the template is left as it is', () => {
+        it('keeps a template that finished within the limit (the edit was just opened), as before', async () => {
+            templateFinished(30 * 1000);
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(startUnifiedTemplate).not.toHaveBeenCalled();
+        });
+
+        it('does not start another while a template is being made', async () => {
+            jest.mocked(latestUnifiedTemplate).mockResolvedValue(record('G0', 'inProgress', Date.now() - 20 * MINUTE));
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(startUnifiedTemplate).not.toHaveBeenCalled();
+        });
+
+        it('leaves the upload step\'s save (it brings the file just uploaded) as it is', async () => {
+            templateFinished(10 * MINUTE);
+            (bringsNewFile as jest.Mock).mockReturnValue(true);
+            await updateProjectTypeCampaignService(save({ resources: [{ type: UNIFIED, filestoreId: 'NEW' }] }));
+            await flush();
+            expect(bringsNewFile).toHaveBeenCalledWith(existing, expect.objectContaining({ id: 'e1' }));
+            expect(latestUnifiedTemplate).not.toHaveBeenCalled();
+        });
+
+        it('leaves a save that starts a template itself (boundaries, type or Outside Household changed) to that path', async () => {
+            (isGenerationTriggerNeeded as jest.Mock).mockReturnValue({ trigger: true });
+            templateFinished(10 * MINUTE);
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(latestUnifiedTemplate).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['a new campaign draft', { parentId: null }],
+            ['a clone draft', { parentId: null, additionalDetails: { isUnifiedCampaign: true, cloneFrom: 'S1' } }],
+            ['the edit\'s final create', { action: 'create' }],
+            ['a campaign that is not unified', { additionalDetails: {} }],
+            ['a draft without boundaries', { boundaries: [] }],
+        ])('leaves %s as it is', async (_name, overrides) => {
+            templateFinished(10 * MINUTE);
+            await updateProjectTypeCampaignService(save(overrides));
+            await flush();
+            expect(latestUnifiedTemplate).not.toHaveBeenCalled();
+        });
+
+        it('keeps the old behaviour when the switch is 0', async () => {
+            (config as any).mapping.refreshEditDraftTemplateAfterMs = 0;
+            templateFinished(10 * MINUTE);
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(latestUnifiedTemplate).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('failures', () => {
+        it('still saves, and starts no template, when the template search fails', async () => {
+            jest.mocked(latestUnifiedTemplate).mockRejectedValue(new Error('excel-ingestion down'));
+            await expect(updateProjectTypeCampaignService(save())).resolves.toBeDefined();
+            await flush();
+            expect(startUnifiedTemplate).not.toHaveBeenCalled();
+        });
+
+        it('still saves when the new template cannot be started', async () => {
+            templateFinished(10 * MINUTE);
+            jest.mocked(startUnifiedTemplate).mockRejectedValue(new Error('excel-ingestion down'));
+            await expect(updateProjectTypeCampaignService(save())).resolves.toBeDefined();
+            await flush();
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not make the save wait for the template', async () => {
+            jest.mocked(latestUnifiedTemplate).mockReturnValue(new Promise(() => undefined));
+            await expect(updateProjectTypeCampaignService(save())).resolves.toBeDefined();
+            expect(startUnifiedTemplate).not.toHaveBeenCalled();
+        });
+
+        it('does not refresh when the save itself fails', async () => {
+            templateFinished(10 * MINUTE);
+            (processBasedOnAction as jest.Mock).mockRejectedValue(new Error('persist failed'));
+            await expect(updateProjectTypeCampaignService(save())).rejects.toThrow('persist failed');
+            await flush();
+            expect(latestUnifiedTemplate).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('watching the template it started (starting it expired the one that worked)', () => {
+        const STARTED_AT = 1_000_000;
+        beforeEach(() => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            (config as any).mapping.refreshEditDraftTemplateWatchIntervalMs = 10 * 1000;
+            jest.mocked(startUnifiedTemplate).mockResolvedValue({ id: 'G1', startedAt: STARTED_AT } as any);
+        });
+        afterEach(() => jest.useRealTimers());
+
+        const startRefresh = async (...watched: any[]) => {
+            const mock = jest.mocked(latestUnifiedTemplate).mockResolvedValueOnce(oldTemplate());
+            watched.forEach((answer) => (answer instanceof Error ? mock.mockRejectedValueOnce(answer) : mock.mockResolvedValueOnce(answer)));
+            await updateProjectTypeCampaignService(save());
+            await flush();
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        };
+
+        it('starts it once more, with the same details, when it fails', async () => {
+            await startRefresh(record('G1', 'inProgress', STARTED_AT), record('G1', 'failed', STARTED_AT, STARTED_AT + 5));
+            await jest.advanceTimersByTimeAsync(20 * 1000);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(2);
+            expect(jest.mocked(startUnifiedTemplate).mock.calls[1][1]).toEqual({ details: true });
+            await jest.advanceTimersByTimeAsync(60 * 1000);
+            expect(latestUnifiedTemplate).toHaveBeenCalledTimes(3);
+        });
+
+        it('stops watching once it completed', async () => {
+            await startRefresh(record('G1', 'completed', STARTED_AT, STARTED_AT + 5));
+            await jest.advanceTimersByTimeAsync(60 * 1000);
+            expect(latestUnifiedTemplate).toHaveBeenCalledTimes(2);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+
+        it('stops, and does not retry, once a later save started a newer template (even one that failed)', async () => {
+            await startRefresh(record('G2', 'failed', STARTED_AT + 50, STARTED_AT + 60));
+            await jest.advanceTimersByTimeAsync(60 * 1000);
+            expect(latestUnifiedTemplate).toHaveBeenCalledTimes(2);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps waiting while its own template is not visible yet (an older record or none)', async () => {
+            await startRefresh({ state: 'none' }, record('G0', 'completed', STARTED_AT - 50), record('G1', 'failed', STARTED_AT, STARTED_AT + 5));
+            await jest.advanceTimersByTimeAsync(30 * 1000);
+            expect(latestUnifiedTemplate).toHaveBeenCalledTimes(4);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(2);
+        });
+
+        it('gives up after the longest wait without starting another', async () => {
+            jest.mocked(latestUnifiedTemplate).mockResolvedValue(record('G1', 'inProgress', STARTED_AT));
+            await startRefresh();
+            await jest.advanceTimersByTimeAsync(20 * MINUTE);
+            expect(latestUnifiedTemplate).toHaveBeenCalledTimes(1 + 60);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
+
+        it('stops quietly when a watch search fails', async () => {
+            await startRefresh(new Error('excel-ingestion down'));
+            await jest.advanceTimersByTimeAsync(60 * 1000);
+            expect(latestUnifiedTemplate).toHaveBeenCalledTimes(2);
+            expect(startUnifiedTemplate).toHaveBeenCalledTimes(1);
+        });
     });
 });

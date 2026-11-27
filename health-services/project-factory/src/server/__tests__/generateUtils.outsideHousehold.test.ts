@@ -8,7 +8,7 @@ jest.mock('../utils/request', () => ({ httpRequest: jest.fn() }));
 jest.mock('../config', () => ({ __esModule: true, default: { localisation: { defaultLocale: 'en_IN' }, host: {}, paths: {} } }));
 jest.mock('../api/coreApis', () => ({ searchMDMSDataViaV2Api: jest.fn() }));
 
-import { callGenerateIfBoundariesOrCampaignTypeDiffer, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, keepFileForOutsideHouseholdChange, KEPT_FILE_KEY } from '../utils/generateUtils';
+import { callExcelIngestionService, callGenerateIfBoundariesOrCampaignTypeDiffer, latestUnifiedTemplate, startUnifiedTemplate, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdChoiceDifferentFromSource, isOutsideHouseholdDeliveryPersisted, keepCloneLineage, cloneSourceFileToReattach, dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, keepFileForOutsideHouseholdChange, KEPT_FILE_KEY } from '../utils/generateUtils';
 import config from '../config';
 import { httpRequest } from '../utils/request';
 import { searchMDMSDataViaV2Api } from '../api/coreApis';
@@ -436,5 +436,86 @@ describe('fileBeforeOutsideHouseholdChange (the new template keeps the data of t
             .toEqual({ projectType: 'POLIO', previousFileStoreId: 'F2', earlierFileStoreIds: ['F1', 'F0'] });
         expect(generationDetailsFromUpdate({ projectType: 'POLIO' }, null, ['F1'])).toEqual({ projectType: 'POLIO' });
         expect(generationDetailsFromUpdate({ projectType: 'POLIO' }, 'F2', [])).toEqual({ projectType: 'POLIO', previousFileStoreId: 'F2' });
+    });
+});
+
+describe('latestUnifiedTemplate (the newest template record of a campaign)', () => {
+    afterEach(() => jest.clearAllMocks());
+    const latest = () => latestUnifiedTemplate({} as any, 'dev' as any, 'cmp-1' as any);
+    const record = (id: string, status: string, createdTime?: number, lastModifiedTime?: number) =>
+        ({ id, status, auditDetails: { ...(createdTime === undefined ? {} : { createdTime }), ...(lastModifiedTime === undefined ? {} : { lastModifiedTime }) } });
+
+    it('asks excel-ingestion for the unified templates of the campaign that are not expired', async () => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerationDetails: [] });
+        await latest();
+        const criteria: any = (jest.mocked(httpRequest).mock.calls[0][1] as any).GenerationSearchCriteria;
+        expect(criteria).toEqual({ tenantId: 'dev', referenceIds: ['cmp-1'], referenceTypes: ['campaign'], types: ['unified-console'],
+            statuses: ['queued', 'pending', 'in_progress', 'completed', 'failed'], limit: 5, offset: 0 });
+    });
+
+    it.each([[{ GenerationDetails: [] }], [{}], [null]])('says none when the answer has no template (%j)', async (answer) => {
+        jest.mocked(httpRequest).mockResolvedValueOnce(answer);
+        expect(await latest()).toEqual({ state: 'none' });
+    });
+
+    it.each(['queued', 'pending', 'in_progress'])('says in progress for a %s template, with its id and start time', async (status) => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerationDetails: [record('G1', status, 5)] });
+        expect(await latest()).toEqual({ state: 'inProgress', id: 'G1', startedAt: 5, finishedAt: 5 });
+    });
+
+    it.each(['completed', 'failed'])('gives the time a %s template finished (lastModifiedTime), not when it was started', async (status) => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerationDetails: [record('G1', status, 1000, 151000)] });
+        expect(await latest()).toEqual({ state: status, id: 'G1', startedAt: 1000, finishedAt: 151000 });
+    });
+
+    it('falls back to the start time when the record has no finish time', async () => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerationDetails: [record('G1', 'completed', 1000)] });
+        expect(await latest()).toEqual({ state: 'completed', id: 'G1', startedAt: 1000, finishedAt: 1000 });
+    });
+
+    it('treats a finished template without any time as old', async () => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerationDetails: [{ id: 'G1', status: 'completed' }] });
+        expect(await latest()).toEqual({ state: 'completed', id: 'G1', startedAt: 0, finishedAt: 0 });
+    });
+
+    it('reports the most recently started of several records, whatever order they come in', async () => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerationDetails: [
+            record('G1', 'completed', 100, 900), record('G3', 'failed', 300, 310), record('G2', 'in_progress', 200)] });
+        expect(await latest()).toEqual({ state: 'failed', id: 'G3', startedAt: 300, finishedAt: 310 });
+    });
+
+    it('fails when the search fails', async () => {
+        jest.mocked(httpRequest).mockRejectedValueOnce(new Error('excel-ingestion down'));
+        await expect(latest()).rejects.toThrow('excel-ingestion down');
+    });
+});
+
+describe('startUnifiedTemplate (starts a template and says which one it started)', () => {
+    afterEach(() => jest.clearAllMocks());
+    const body = { RequestInfo: { msgId: 'm' }, CampaignDetails: { id: 'cmp-1', tenantId: 'dev', hierarchyType: 'H' } };
+
+    it('sends the same template request as callExcelIngestionService without overrides', async () => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerateResource: { id: 'G9', createdTime: 77 } });
+        await startUnifiedTemplate(body, { projectType: 'POLIO' });
+        jest.mocked(httpRequest).mockResolvedValueOnce({});
+        await callExcelIngestionService(body, undefined, undefined, undefined, { projectType: 'POLIO' });
+        const [mine, existingPath] = jest.mocked(httpRequest).mock.calls;
+        expect(mine[0]).toEqual(existingPath[0]);
+        expect(mine[1]).toEqual(existingPath[1]);
+    });
+
+    it('returns the id and start time excel-ingestion gives the new template', async () => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerateResource: { id: 'G9', createdTime: 77 } });
+        expect(await startUnifiedTemplate(body, {})).toEqual({ id: 'G9', startedAt: 77 });
+    });
+
+    it('fails when excel-ingestion returns no id', async () => {
+        jest.mocked(httpRequest).mockResolvedValueOnce({ GenerateResource: {} });
+        await expect(startUnifiedTemplate(body, {})).rejects.toThrow("excel-ingestion did not return the new template's id");
+    });
+
+    it('fails when the request fails', async () => {
+        jest.mocked(httpRequest).mockRejectedValueOnce(new Error('excel-ingestion down'));
+        await expect(startUnifiedTemplate(body, {})).rejects.toThrow('excel-ingestion down');
     });
 });

@@ -9,6 +9,7 @@ import { getBoundarySheetData } from "../api/genericApis";
 import { checkIfSourceIsMicroplan } from "./campaignUtils";
 import { httpRequest } from "./request";
 import { RequestInfo } from "../config/models/requestInfoSchema";
+import { CampaignId, EpochMs, GenerationId, TenantId } from "../config/models/brandedTypes";
 import { OUTSIDE_HOUSEHOLD_DELIVERY_METHOD, campaignTypeOffersOutsideHousehold, normalizeDeliveryMethodCode } from "./deliveryMethodUtils";
 
 function extractProperties(obj: any) {
@@ -170,7 +171,7 @@ export function generationDetailsFromUpdate(campaignDetails: any, previousFileSt
 export const KEPT_FILE_KEY = "fileKeptOnOutsideHouseholdChange";
 
 /** The kept file of this campaign itself (not one copied over from a cloned or edited campaign), or null. */
-function keptFile(campaign: any): string | null {
+export function keptFile(campaign: any): string | null {
     const kept = campaign?.additionalDetails?.[KEPT_FILE_KEY];
     return kept?.campaignId && kept.campaignId === campaign?.id && typeof kept.fileStoreId === "string" && kept.fileStoreId ? kept.fileStoreId : null;
 }
@@ -184,7 +185,7 @@ function sameAreaAsSaved(existing: any, incoming: any): boolean {
 }
 
 /** True when the update sends a unified file the campaign does not have yet (attached or kept). */
-function bringsNewFile(existing: any, incoming: any): boolean {
+export function bringsNewFile(existing: any, incoming: any): boolean {
     const known = new Set((Array.isArray(existing.resources) ? existing.resources : []).filter(isUnifiedFile).map((r: any) => r.filestoreId));
     const kept = keptFile(existing);
     if (kept) known.add(kept);
@@ -275,6 +276,72 @@ export async function callExcelIngestionService(requestBody: any, referenceIdOve
     } catch (error: any) {
         logger.error(`Error calling excel-ingestion generate API: ${error.message}`);
     }
+}
+
+/** A campaign's newest template record that is not expired: none, or its state, id, start time and (when finished) finish time. */
+export type LatestTemplate = { state: "none" } | { state: "inProgress" | "completed" | "failed"; id: GenerationId; startedAt: EpochMs; finishedAt: EpochMs };
+
+/** A template started for a campaign: its generation id and the time excel-ingestion started it. */
+export type StartedTemplate = { id: GenerationId; startedAt: EpochMs };
+
+const TEMPLATE_IN_PROGRESS_STATUSES = new Set(["queued", "pending", "in_progress"]);
+
+// A new template expires the older ones, so a campaign normally has one record that is not expired; a few cover a race
+const TEMPLATE_RECORDS_READ = 5;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
+
+const auditTime = (record: Record<string, unknown>, key: "createdTime" | "lastModifiedTime"): number | undefined => {
+    const value = isRecord(record.auditDetails) ? record.auditDetails[key] : undefined;
+    return typeof value === "number" || typeof value === "string" ? Number(value) : undefined;
+};
+
+const startedAt = (record: Record<string, unknown>): number => auditTime(record, "createdTime") ?? Number(record.createdTime ?? 0);
+
+// excel-ingestion sets createdTime at _init only; finishing the template updates lastModifiedTime
+const finishedAt = (record: Record<string, unknown>): number => auditTime(record, "lastModifiedTime") ?? startedAt(record);
+
+/** A campaign's newest unified template, from its records that are not expired, whatever order the search returns them in. Throws when the search fails. */
+export async function latestUnifiedTemplate(requestInfo: RequestInfo | undefined, tenantId: TenantId, campaignId: CampaignId): Promise<LatestTemplate> {
+    const url = config.host.excelIngestionHost + config.paths.excelIngestionGenerateSearch;
+    const response: unknown = await httpRequest(url, {
+        RequestInfo: requestInfo,
+        GenerationSearchCriteria: {
+            tenantId,
+            referenceIds: [campaignId],
+            referenceTypes: ["campaign"],
+            types: ["unified-console"],
+            statuses: ["queued", "pending", "in_progress", "completed", "failed"],
+            limit: TEMPLATE_RECORDS_READ,
+            offset: 0
+        }
+    }, undefined, "post", undefined);
+    const records = isRecord(response) && Array.isArray(response.GenerationDetails) ? response.GenerationDetails.filter(isRecord) : [];
+    if (records.length === 0) return { state: "none" };
+    const newest = records.reduce((latest, record) => (startedAt(record) > startedAt(latest) ? record : latest));
+    const state = typeof newest.status === "string" && TEMPLATE_IN_PROGRESS_STATUSES.has(newest.status) ? "inProgress"
+        : newest.status === "failed" ? "failed" : "completed";
+    return { state, id: String(newest.id ?? "") as GenerationId, startedAt: startedAt(newest) as EpochMs, finishedAt: finishedAt(newest) as EpochMs };
+}
+
+/** Starts a campaign's unified template with the request callExcelIngestionService sends without overrides, and returns the new template; throws when it cannot be started. */
+export async function startUnifiedTemplate(requestBody: any, details: Record<string, any>): Promise<StartedTemplate> {
+    const campaignDetails = requestBody?.CampaignDetails;
+    const response: unknown = await httpRequest(config.host.excelIngestionHost + config.paths.excelIngestionGenerate, {
+        RequestInfo: requestBody?.RequestInfo,
+        GenerateResource: {
+            tenantId: campaignDetails?.tenantId,
+            type: 'unified-console',
+            hierarchyType: campaignDetails?.hierarchyType,
+            locale: getLocaleFromRequestInfo(requestBody?.RequestInfo),
+            referenceId: campaignDetails?.id,
+            referenceType: 'campaign',
+            additionalDetails: details
+        }
+    }, undefined, 'post', undefined);
+    const started = isRecord(response) && isRecord(response.GenerateResource) ? response.GenerateResource : {};
+    if (typeof started.id !== "string" || !started.id) throw new Error("excel-ingestion did not return the new template's id");
+    return { id: started.id as GenerationId, startedAt: Number(started.createdTime ?? Date.now()) as EpochMs };
 }
 
 /** Queries excel-ingestion for the completed generation result of a campaign's template. */

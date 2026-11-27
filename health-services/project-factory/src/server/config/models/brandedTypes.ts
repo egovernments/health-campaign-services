@@ -21,3 +21,9 @@ export type CampaignNumber = Brand<string, "CampaignNumber">;
 export type AttendanceRegisterId = Brand<string, "AttendanceRegisterId">;
 
 export type IndividualId = Brand<string, "IndividualId">;
+
+export type CampaignId = Brand<string, "CampaignId">;
+
+export type EpochMs = Brand<number, "EpochMs">;
+
+export type GenerationId = Brand<string, "GenerationId">;

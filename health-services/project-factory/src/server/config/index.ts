@@ -158,6 +158,14 @@ const config = {
     // After a save that adds or drops Outside Household, the new template keeps the users, targets and facilities of the
     // file the campaign had before; "false" gives an empty template, as before
     keepDataOnOutsideHouseholdChange: (process.env.CAMPAIGN_KEEP_DATA_ON_OUTSIDE_HOUSEHOLD_CHANGE || "true").toLowerCase() !== "false",
+    // A save of an edit draft that starts no template itself and brings no new file starts a new one when the draft's
+    // template finished longer ago than this (ms) or failed, so sites, facilities and users added after the edit was opened
+    // come in; "0" keeps the old template
+    refreshEditDraftTemplateAfterMs: process.env.CAMPAIGN_REFRESH_EDIT_DRAFT_TEMPLATE_AFTER_MS ? parseInt(process.env.CAMPAIGN_REFRESH_EDIT_DRAFT_TEMPLATE_AFTER_MS, 10) : 120000,
+    // Starting that template expires the one that worked, so it is watched every WATCH_INTERVAL ms for up to WATCH_MAX ms
+    // and started once more if it fails
+    refreshEditDraftTemplateWatchIntervalMs: process.env.CAMPAIGN_REFRESH_EDIT_DRAFT_TEMPLATE_WATCH_INTERVAL_MS ? parseInt(process.env.CAMPAIGN_REFRESH_EDIT_DRAFT_TEMPLATE_WATCH_INTERVAL_MS, 10) : 10000,
+    refreshEditDraftTemplateWatchMaxMs: process.env.CAMPAIGN_REFRESH_EDIT_DRAFT_TEMPLATE_WATCH_MAX_MS ? parseInt(process.env.CAMPAIGN_REFRESH_EDIT_DRAFT_TEMPLATE_WATCH_MAX_MS, 10) : 600000,
 
     maxReconcileCycles: process.env.MAPPING_MAX_RECONCILE_CYCLES ? parseInt(process.env.MAPPING_MAX_RECONCILE_CYCLES, 10) : 5,
 

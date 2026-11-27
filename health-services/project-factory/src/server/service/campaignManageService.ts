@@ -10,7 +10,8 @@ import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
-import { dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage, keepFileForOutsideHouseholdChange } from "../utils/generateUtils";
+import { bringsNewFile, dropCloneSourceDeliveryDates, dropCloneSourceDeliveryRules, fileBeforeOutsideHouseholdChange, generationDetailsFromUpdate, isGenerationTriggerNeeded, isOutsideHouseholdDeliveryChanged, keepCloneLineage, keepFileForOutsideHouseholdChange, keptFile, latestUnifiedTemplate, startUnifiedTemplate, StartedTemplate } from "../utils/generateUtils";
+import { CampaignId, TenantId } from "../config/models/brandedTypes";
 import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 import { campaignTypeOffersOutsideHousehold } from "../utils/deliveryMethodUtils";
 
@@ -83,6 +84,68 @@ async function earlierUnifiedFiles(tenantId: string, campaignId: string, exclude
     } catch (error) {
         logger.warn(`Could not read the earlier files of campaign ${campaignId}: ${error instanceof Error ? error.message : error}`);
         return [];
+    }
+}
+
+/** True when this save leaves the edit draft's template to be refreshed: a unified edit draft saved as a draft, with boundaries. */
+function isEditDraftSave(request: express.Request): boolean {
+    const campaign = request.body?.CampaignDetails;
+    const stored = request.body?.ExistingCampaignDetails;
+    return campaign?.action === "draft" && Boolean(campaign?.parentId || stored?.parentId)
+        && Boolean(campaign?.additionalDetails?.isUnifiedCampaign || stored?.additionalDetails?.isUnifiedCampaign)
+        && campaign?.boundaries?.length > 0 && typeof campaign?.id === "string" && typeof campaign?.tenantId === "string";
+}
+
+/**
+ * Waits for the template the refresh started and starts it once more if that template fails, since starting it expired the
+ * one that worked. Stops as soon as a later save starts a newer template, which then owns the draft's template.
+ */
+async function retryFailedEditDraftTemplate(request: express.Request, tenantId: TenantId, campaignId: CampaignId, details: Record<string, any>, started: StartedTemplate): Promise<void> {
+    const { refreshEditDraftTemplateWatchIntervalMs: intervalMs, refreshEditDraftTemplateWatchMaxMs: maxMs } = config.mapping;
+    if (!(intervalMs > 0)) return;
+    for (let waitedMs = 0; waitedMs < maxMs; waitedMs += intervalMs) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        const latest = await latestUnifiedTemplate(request.body?.RequestInfo, tenantId, campaignId);
+        if (latest.state === "none") continue;
+        if (latest.id !== started.id) {
+            if (latest.startedAt > started.startedAt) return;
+            continue;
+        }
+        if (latest.state === "inProgress") continue;
+        if (latest.state === "failed") {
+            logger.warn(`Edit draft ${campaignId}: its new template ${started.id} failed; starting it once more`);
+            await startUnifiedTemplate(request.body, details);
+        }
+        return;
+    }
+    logger.warn(`Edit draft ${campaignId}: its new template ${started.id} was not finished after ${maxMs} ms`);
+}
+
+/**
+ * An edit draft kept the template made when the edit was opened, so sites, facilities and users added later were missing
+ * when the draft was opened again. A save of the draft that starts no template itself and brings no new file now starts one
+ * when the draft's newest template failed or finished longer ago than config.mapping.refreshEditDraftTemplateAfterMs, sending
+ * what an Outside Household change sends (the kept file and the earlier files) so the rows copied from them stay. New
+ * campaigns, clones and the edit's final create are left as they are; a failure here never fails the save.
+ */
+async function refreshEditDraftTemplate(request: express.Request, saveStartsTemplate: boolean, saveBringsNewFile: boolean): Promise<void> {
+    const afterMs = config.mapping.refreshEditDraftTemplateAfterMs;
+    if (saveStartsTemplate || saveBringsNewFile || !(afterMs > 0) || !isEditDraftSave(request)) return;
+    const campaign = request.body.CampaignDetails;
+    // isEditDraftSave checked both are strings
+    const campaignId = campaign.id as CampaignId;
+    const tenantId = campaign.tenantId as TenantId;
+    try {
+        const latest = await latestUnifiedTemplate(request.body.RequestInfo, tenantId, campaignId);
+        if (latest.state === "inProgress" || (latest.state === "completed" && Date.now() - latest.finishedAt < afterMs)) return;
+        const kept = keptFile(campaign);
+        const earlier = kept ? await earlierUnifiedFiles(tenantId, campaignId, kept) : null;
+        const details = generationDetailsFromUpdate(campaign, kept, earlier);
+        logger.info(`Edit draft ${campaignId}: its template is ${latest.state === "completed" ? `older than ${afterMs} ms` : latest.state}; starting a new one${kept ? ` that keeps the data of file ${kept}` : ""}`);
+        const started = await startUnifiedTemplate(request.body, details);
+        await retryFailedEditDraftTemplate(request, tenantId, campaignId, details, started);
+    } catch (error) {
+        logger.warn(`Edit draft ${campaignId}: could not refresh its template: ${error instanceof Error ? error.message : error}`);
     }
 }
 
@@ -165,6 +228,8 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const hierarchyChanged = existingCampaign && incomingHierarchyType &&
         existingCampaign.hierarchyType !== incomingHierarchyType;
     const boundariesOrTypeChanged = isGenerationTriggerNeeded(request)?.trigger === true;
+    // Read before the save changes the files it sends; the upload step's save brings the file just uploaded
+    const saveBringsNewFile = Boolean(existingCampaign && request?.body?.CampaignDetails) && bringsNewFile(existingCampaign, request.body.CampaignDetails);
     // Only an Outside Household choice change keeps the old files detached (the template gains or loses its sheet);
     // other configuration changes keep attaching the files the save sends, as before.
     const detachStaleFiles = Boolean(config.mapping?.detachStaleResourcesOnConfigChange) && isOutsideHouseholdDeliveryChanged(request);
@@ -218,6 +283,8 @@ async function updateProjectTypeCampaignService(request: express.Request) {
         }
         throw error;
     }
+    // Not awaited: a slow or down excel-ingestion (its calls retry) must not hold up the save
+    void refreshEditDraftTemplate(request, boundariesOrTypeChanged, saveBringsNewFile);
 
     if (requestResources.length > 0 && tenantId && campaignId) {
         // Re-fetch campaign so response includes full resources from table
