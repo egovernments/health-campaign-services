@@ -1,6 +1,7 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import config from "../config";
 import { v4 as uuidv4 } from "uuid";
+import { randomInt } from "crypto";
 import { httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from "../config/createAndSearch";
@@ -1081,34 +1082,21 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-/** Generates a random password matching the required aXyz@123 pattern (4-letter sequence with an uppercase second letter, then a 3-digit number). */
-export function generateUserPassword() {
-  function getRandomLowercaseLetter() {
-    const letters = "abcdefghijklmnopqrstuvwxyz";
-    return letters.charAt(Math.floor(Math.random() * letters.length));
+/** Generates a 12-character crypto-random password that meets egov-user's password rules; look-alike characters (0/O, 1/l/I) are left out because field workers often type it from a printed sheet. */
+export function generateUserPassword(): string {
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const pick = (chars: string): string => chars[randomInt(chars.length)];
+
+  const chars = [pick(lower), pick(upper), pick(digits)];
+  while (chars.length < 11) chars.push(pick(lower + upper + digits));
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
   }
-
-  function getRandomUppercaseLetter() {
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    return letters.charAt(Math.floor(Math.random() * letters.length));
-  }
-
-  function generate4LetterSequence() {
-    const firstLetter = getRandomLowercaseLetter();
-    const secondLetter = getRandomUppercaseLetter();
-    const thirdLetter = getRandomLowercaseLetter();
-    const fourthLetter = getRandomLowercaseLetter();
-    return firstLetter + secondLetter + thirdLetter + fourthLetter;
-  }
-
-  function getRandom3DigitNumber() {
-    return Math.floor(100 + Math.random() * 900);
-  }
-
-  const firstSequence = generate4LetterSequence();
-  const randomNumber = getRandom3DigitNumber();
-
-  return `${firstSequence}@${randomNumber}`;
+  chars.splice(randomInt(1, chars.length + 1), 0, "@");
+  return chars.join("");
 }
 
 async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
