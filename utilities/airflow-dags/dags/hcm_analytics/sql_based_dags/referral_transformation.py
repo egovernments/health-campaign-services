@@ -353,6 +353,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("user_name", "users.user_name"),
     ("name_of_user", "users.name_of_user"),
     ("role", "users.role"),
+    ("joined_role", "users.joined_role"),
     ("user_address", "users.user_address"),
     ("age", "if(joined.individual_matched, toInt32(age_months), toInt32(0))"),
     *[(column, f"levels.{column}") for column in LEVEL_COLUMNS],

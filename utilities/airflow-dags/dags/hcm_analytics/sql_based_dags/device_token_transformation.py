@@ -143,6 +143,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("user_roles", "joined.user_roles"),
     ("user_name", "users.user_name"),
     ("role", "users.role"),
+    ("joined_role", "users.joined_role"),
     *[(column, f"levels.{column}") for column in LEVEL_COLUMNS],
     ("hierarchy_type", "if(joined.boundary_code != '', joined.hierarchy_type, '')"),
     # both dates from the SERVER last_modified_time (no client audit trail on this entity)

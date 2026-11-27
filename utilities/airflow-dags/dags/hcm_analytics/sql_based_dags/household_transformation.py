@@ -217,6 +217,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("user_name", "users.user_name"),
     ("name_of_user", "users.name_of_user"),
     ("role", "users.role"),
+    ("joined_role", "users.joined_role"),
     ("user_address", "users.user_address"),
     # client timestamp for task_dates, server timestamps for the synced_* columns; 0 -> epoch defaults
     ("task_dates", "toDate32(fromUnixTimestamp64Milli(joined.client_last_modified_time, 'UTC'))"),

@@ -177,6 +177,7 @@ SILVER_COLUMNS: list[tuple[str, str]] = [
     ("additional_fields", "joined.additional_details"),
     ("user_name", "users.user_name"),
     ("role", "users.role"),
+    ("joined_role", "users.joined_role"),
     ("user_address", "users.user_address"),
     *[(column, f"levels.{column}") for column in LEVEL_COLUMNS],
     ("hierarchy_type", "if(joined.lookup_boundary_code != '', joined.hierarchy_type, '')"),
